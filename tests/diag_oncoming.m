@@ -1,0 +1,11 @@
+root = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(root,'stages'),fullfile(root,'planning'),fullfile(root,'config'),fullfile(root,'vehicle'),fullfile(root,'core'),fullfile(root,'environment'));
+cfg = SimulationConfig();
+x_agent = 60 + (-8.0) .* (52.*0.1);
+y_agent = 3.70;
+ego_x = 17.74; ego_y = 2.05;
+dist = sqrt((ego_x - x_agent).^2 + (ego_y - y_agent).^2);
+r_sum = cfg.collision_radius .* 2;
+fprintf('Agent1 at step 52: x=%.2f, y=%.2f\n', x_agent, y_agent);
+fprintf('Distance=%.2f, r_sum=%.2f, clearance=%.4f\n', dist, r_sum, dist - r_sum);
+fprintf('collision_radius=%.4f\n', cfg.collision_radius);

@@ -1,0 +1,41 @@
+# Large Media & Video files
+*.mp4
+*.avi
+*.gif
+*.mov
+*.webm
+*.mkv
+
+# Large Data & Workspace files
+*.mat
+*.db
+*.bin
+*.dat
+*.nc
+*.hdf5
+
+# IDE & Editor cache
+.vscode/
+.idea/
+*.asv
+*.m~
+*.swp
+
+# Artifacts & Output directories containing heavy generated content
+artifacts/
+scratch/
+results/*.csv
+results/*.mat
+results/*.png
+
+# Image files in root or visualization (except doc images if needed, but keeping images un-tracked for fast push)
+visualization/*.png
+visualization/*.mp4
+visualization/*.avi
+visualization/*.gif
+visualization/**/*.png
+visualization/**/*.mp4
+visualization/**/*.avi
+visualization/**/*.gif
+tests/**/*.mat
+tests/**/*.png
