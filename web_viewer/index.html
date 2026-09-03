@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SIH26037 Autonomous Vehicle Pipeline Viewer — Adaptive Path Planning and Collision Avoidance visualization from actual MATLAB pipeline execution data.">
+  <title>SIH26037 — Pipeline Viewer</title>
+  <link rel="stylesheet" href="css/viewer.css">
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <h2>SIH26037 Pipeline Viewer</h2>
+    <p>Loading simulation data…</p>
+  </div>
+
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <h1>SIH26037 — Pipeline Viewer</h1>
+      <span class="scenario-badge" id="scenario-name">—</span>
+      <div class="status-group">
+        <div><span class="status-label">Seed </span><span class="status-value" id="hdr-seed">—</span></div>
+        <div><span class="status-label">Steps </span><span class="status-value" id="hdr-steps">—</span></div>
+        <div><span class="status-label">Outcome </span><span class="status-value" id="hdr-outcome">—</span></div>
+      </div>
+    </header>
+
+    <!-- Main Scene Canvas -->
+    <div id="main-view">
+      <canvas id="scene-canvas"></canvas>
+      <div id="legend">
+        <h3>Legend</h3>
+        <div class="legend-item"><span class="legend-swatch" style="background:#3fb950"></span> Ground Truth</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#d29922"></span> Observation</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:rgba(188,140,255,0.7)"></span> Prediction</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:rgba(88,166,255,0.7)"></span> Ego Plan</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#58a6ff;height:8px;width:8px;border-radius:50%"></span> Ego Vehicle</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#f0883e;height:8px;width:8px;border-radius:50%"></span> Agent</div>
+      </div>
+    </div>
+
+    <!-- Right Pipeline Panel -->
+    <div id="panel-container">
+      <!-- Panels injected by JS -->
+    </div>
+
+    <!-- Timeline Controls -->
+    <div id="timeline-bar">
+      <div id="timeline-controls">
+        <button class="ctrl-btn" id="btn-restart" title="Restart">⏮</button>
+        <button class="ctrl-btn" id="btn-step-back" title="Step Back">◀</button>
+        <button class="ctrl-btn" id="btn-play" title="Play/Pause">▶</button>
+        <button class="ctrl-btn" id="btn-step-fwd" title="Step Forward">▶▏</button>
+        <span id="time-display">t = 0.00s | Step 0/0</span>
+        <label style="font-size:11px;color:var(--text-secondary)">Speed:</label>
+        <select id="speed-select">
+          <option value="0.25">0.25×</option>
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </div>
+      <div id="timeline-track">
+        <input type="range" id="timeline-slider" min="0" max="0" value="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div id="event-tooltip"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

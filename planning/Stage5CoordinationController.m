@@ -297,6 +297,19 @@ classdef Stage5CoordinationController < handle
             info.n_detected_vehicles = length(detections);
             info.filter_active = filter_active;
             info.filter_reason = filter_reason;
+            
+            % --- Pipeline Instrumentation (logging-only, no algorithm change) ---
+            info.detections = detections;
+            info.predictions = preds;
+            info.ttc_vector = ttc_vector;
+            info.interactions = interactions;
+            info.decision = decision;
+            info.pred_ego_traj = pred_states;
+            info.locked_side = obj.cacrc_planner.locked_side;
+            info.in_overtake_maneuver = obj.in_overtake_maneuver;
+            info.target_overtake_id = obj.target_overtake_id;
+            info.u_mpc = u_mpc;
+            info.u_safe = u_cmd;
         end
     end
 end

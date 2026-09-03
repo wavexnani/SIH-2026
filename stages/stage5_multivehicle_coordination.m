@@ -1,4 +1,4 @@
-function [passed, metrics, history] = stage5_multivehicle_coordination(varargin)
+function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordination(varargin)
     % STAGE5_MULTIVEHICLE_COORDINATION Stage 5 Multi-Vehicle Interaction Audit
     %
     % Evaluates Stage 5 Coordination Controller (Hierarchical Decision Layer + Frozen Stage 4 CA-CRC)
@@ -143,6 +143,40 @@ function [passed, metrics, history] = stage5_multivehicle_coordination(varargin)
     intent_counts.FOLLOW = 0;
     intent_counts.YIELD = 0;
     intent_counts.OVERTAKE = 0;
+    
+    % --- Structured Pipeline Logging (instrumentation only) ---
+    simulationLog = cell(N_steps, 1);
+    % Store scenario metadata once
+    simMeta.scenario_name = scenario_name;
+    simMeta.seed = sim_seed;
+    simMeta.dt = dt;
+    simMeta.max_steps = N_steps;
+    simMeta.duration = N_steps * dt;
+    simMeta.perception_mode = obs_model.mode;
+    simMeta.actuator_mode = actuator_model.mode;
+    simMeta.v_target_nominal = v_target_nominal;
+    simMeta.road_bounds = [0, config.road_length, config.road_center_y - config.road_width/2, config.road_center_y + config.road_width/2];
+    simMeta.road_length = config.road_length;
+    simMeta.road_width = config.road_width;
+    simMeta.vehicle_length = config.vehicle_length;
+    simMeta.vehicle_width = config.vehicle_width;
+    simMeta.wheelbase = config.wheelbase;
+    % Store initial static obstacles
+    simMeta.static_obstacles = [];
+    for s_i = 1:world.n_static_obs
+        obs_s = world.static_obs(s_i, :);
+        if obs_s(1) > -50
+            simMeta.static_obstacles = [simMeta.static_obstacles; struct('id', s_i, 'x', obs_s(1), 'y', obs_s(2), 'L', obs_s(3), 'W', obs_s(4))];
+        end
+    end
+    % Store initial agent info
+    simMeta.initial_agents = [];
+    for a_i = 1:world.n_agents
+        ag = world.agents(a_i);
+        if ag.x > -50
+            simMeta.initial_agents = [simMeta.initial_agents; struct('id', ag.id, 'x', ag.x, 'y', ag.y, 'vx', ag.vx, 'vy', ag.vy, 'length', ag.length, 'width', ag.width)];
+        end
+    end
     
     for k = 1:N_steps
         t = (k - 1) * dt;
@@ -303,7 +337,137 @@ function [passed, metrics, history] = stage5_multivehicle_coordination(varargin)
         if isfield(intent_counts, info.macro_intent)
             intent_counts.(info.macro_intent) = intent_counts.(info.macro_intent) + 1;
         end
+        
+        % --- Populate simulationLog(k) from actual pipeline state ---
+        slog.time = t;
+        slog.step = k;
+        
+        % Ground Truth
+        slog.groundTruth.ego = struct('x', world.ego.x, 'y', world.ego.y, 'theta', world.ego.theta, 'v', world.ego.v, 'delta', world.ego.delta, 'a', world.ego.a);
+        gt_agents = [];
+        for gt_i = 1:world.n_agents
+            ag = world.agents(gt_i);
+            if ag.x > -50
+                gt_agents = [gt_agents; struct('id', ag.id, 'x', ag.x, 'y', ag.y, 'vx', ag.vx, 'vy', ag.vy, 'length', ag.length, 'width', ag.width)];
+            end
+        end
+        slog.groundTruth.agents = gt_agents;
+        slog.groundTruth.min_clearance = clearance;
+        slog.groundTruth.is_collision = is_coll;
+        slog.groundTruth.in_bounds = in_bounds;
+        
+        % Observation
+        slog.observation.mode = obs_model.mode;
+        obs_agents_log = [];
+        if ~isempty(obs_structs)
+            for obs_i = 1:length(obs_structs)
+                if obs_structs(obs_i).agent_id > 0
+                    obs_agents_log = [obs_agents_log; struct('id', obs_structs(obs_i).agent_id, 'x', obs_structs(obs_i).x, 'y', obs_structs(obs_i).y, 'velocity', obs_structs(obs_i).velocity, 'heading', obs_structs(obs_i).heading, 'vx', obs_structs(obs_i).vx, 'vy', obs_structs(obs_i).vy, 'age', obs_structs(obs_i).age)];
+                end
+            end
+        end
+        slog.observation.agents = obs_agents_log;
+        
+        % Detections
+        det_log = [];
+        if isfield(info, 'detections') && ~isempty(info.detections)
+            for d_i = 1:length(info.detections)
+                d = info.detections(d_i);
+                det_log = [det_log; struct('id', d.id, 'x', d.x, 'y', d.y, 'vx', d.vx, 'vy', d.vy, 'v', d.v, 'dx', d.dx, 'dy', d.dy, 'd_rel', d.d_rel, 'is_ahead', d.is_ahead, 'is_same_lane', d.is_same_lane, 'is_oncoming', d.is_oncoming)];
+            end
+        end
+        slog.detections = det_log;
+        
+        % Prediction
+        pred_log = [];
+        if isfield(info, 'predictions') && ~isempty(info.predictions)
+            for p_i = 1:length(info.predictions)
+                p = info.predictions(p_i);
+                pred_log = [pred_log; struct('id', p.id, 'x_traj', p.x_traj, 'y_traj', p.y_traj, 'vx', p.vx, 'vy', p.vy)];
+            end
+        end
+        slog.prediction.agents = pred_log;
+        slog.prediction.horizon_steps = 10;
+        slog.prediction.dt = 0.10;
+        
+        % Risk
+        slog.risk.min_ttc = min_ttc_val;
+        if isfield(info, 'ttc_vector')
+            slog.risk.ttc_vector = info.ttc_vector;
+        else
+            slog.risk.ttc_vector = [];
+        end
+        
+        % Interaction
+        int_log = [];
+        if isfield(info, 'interactions') && ~isempty(info.interactions)
+            for i_i = 1:length(info.interactions)
+                ix = info.interactions(i_i);
+                int_log = [int_log; struct('id', ix.id, 'class_name', ix.class_name, 'primary_concern', ix.primary_concern, 'risk_level', ix.risk_level, 'ttc', ix.ttc)];
+            end
+        end
+        slog.interaction = int_log;
+        
+        % Decision
+        if isfield(info, 'decision')
+            slog.decision = info.decision;
+        else
+            slog.decision = struct('macro_intent', info.macro_intent, 'target_v', 0, 'reason', '');
+        end
+        
+        % Free Space
+        if isfield(info, 'y_min_vec')
+            slog.freeSpace.y_min_vec = info.y_min_vec';
+            slog.freeSpace.y_max_vec = info.y_max_vec';
+            slog.freeSpace.min_corridor_width = info.min_delta_y;
+        else
+            slog.freeSpace = struct('y_min_vec', [], 'y_max_vec', [], 'min_corridor_width', 0);
+        end
+        
+        % Topology
+        slog.topology.selected = info.selected_topology;
+        if isfield(info, 'locked_side'), slog.topology.locked_side = info.locked_side; else, slog.topology.locked_side = 'none'; end
+        if isfield(info, 'ok_geom_left'), slog.topology.ok_geom_left = info.ok_geom_left; else, slog.topology.ok_geom_left = true; end
+        if isfield(info, 'ok_geom_right'), slog.topology.ok_geom_right = info.ok_geom_right; else, slog.topology.ok_geom_right = true; end
+        if isfield(info, 'J_left'), slog.topology.J_left = info.J_left; else, slog.topology.J_left = 0; end
+        if isfield(info, 'J_right'), slog.topology.J_right = info.J_right; else, slog.topology.J_right = 0; end
+        
+        % MPC
+        slog.mpc.status = status;
+        slog.mpc.solve_time_ms = info.solve_time_ms;
+        slog.mpc.is_soft = info.is_soft;
+        slog.mpc.failure_reason = info.failure_reason;
+        if isfield(info, 'pred_ego_traj') && ~isempty(info.pred_ego_traj)
+            slog.mpc.pred_ego_traj = info.pred_ego_traj;
+        else
+            slog.mpc.pred_ego_traj = [];
+        end
+        slog.mpc.u_cmd = u_cmd(:)';
+        
+        % Safety
+        slog.safety.filter_active = info.filter_active;
+        slog.safety.filter_reason = info.filter_reason;
+        if isfield(info, 'u_safe'), slog.safety.u_safe = info.u_safe(:)'; else, slog.safety.u_safe = u_cmd(:)'; end
+        
+        % Actuation
+        slog.actuation.delta_cmd = u_cmd(1);
+        slog.actuation.a_cmd = u_cmd(2);
+        slog.actuation.delta_actual = delta_actual_cmd;
+        slog.actuation.a_actual = a_actual_cmd;
+        slog.actuation.delta_plant = world.ego.delta;
+        slog.actuation.a_plant = world.ego.a;
+        slog.actuation.steering_error = act_info.steering_error;
+        slog.actuation.acceleration_error = act_info.acceleration_error;
+        
+        % Ego post-dynamics
+        slog.ego = struct('x', world.ego.x, 'y', world.ego.y, 'theta', world.ego.theta, 'v', world.ego.v, 'delta', world.ego.delta, 'a', world.ego.a);
+        
+        simulationLog{k} = slog;
     end
+    
+    % Attach metadata to history for export
+    history.simulationLog = simulationLog;
+    history.simMeta = simMeta;
     
     % Summary Metrics Calculation
     dist_traveled = world.ego.x - 10.0;
