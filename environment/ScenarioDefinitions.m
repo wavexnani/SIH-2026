@@ -86,6 +86,21 @@ function world = ScenarioDefinitions(scenario_name, cfg)
         case 'complex'
             world = scenario_complex(world, cfg);
             
+        case 'sih_hero_candidate_A'
+            world = scenario_sih_hero_candidate_A(world, cfg);
+            
+        case 'sih_hero_candidate_B'
+            world = scenario_sih_hero_candidate_B(world, cfg);
+            
+        case 'sih_hero_candidate_C'
+            world = scenario_sih_hero_candidate_C(world, cfg);
+            
+        case 'sih_hero_candidate_D'
+            world = scenario_sih_hero_candidate_D(world, cfg);
+            
+        case {'sih_hero_visual_proof', 'sih_hero'}
+            world = scenario_sih_hero_candidate_A(world, cfg);
+            
         otherwise
             warning('Unknown scenario: %s. Using default (moderate)', scenario_name);
             world = scenario_moderate(world, cfg);
@@ -752,6 +767,84 @@ function world = scenario_indian_realistic_demo_v5(world, cfg)
     n_total = length(world.agents);
     for i = 10:n_total, world = world.setAgentState(i, -100, -100, 0, 0, cfg.sigma_agent); end
     world.n_agents = 9;
+end
+
+% =========================================================================
+% SIH26037 HERO CANDIDATE SCENARIOS FOR VISUAL PROOF & DEMONSTRATION
+% Unmarked narrow Indian road + slow lead vehicle + oncoming car + roadside stall
+% =========================================================================
+
+function world = scenario_sih_hero_candidate_A(world, cfg)
+    % Candidate A: Balanced Gap Yield-to-Overtake Sequence
+    % Ego:      (10m, 1.80m) at 5.0 m/s
+    % Lead Obs: (35m, 1.80m) moving forward at 3.2 m/s (Auto-rickshaw L=2.5m, W=1.3m)
+    % Oncoming: (72m, 4.30m) moving backward at -6.5 m/s (Car L=4.5m, W=1.8m)
+    % Stall:    (25m, 0.40m) static roadside obstacle (L=2.2m, W=1.2m)
+    world = world.setEgoState(10.0, 1.80, 0, 5.0);
+    
+    % Agent 1: Lead Auto-Rickshaw
+    world = world.setAgentState(1, 35.0, 1.80, 3.2, 0, cfg.sigma_agent);
+    world.agents(1).length = 2.5; world.agents(1).width = 1.3;
+    
+    % Agent 2: Oncoming Car
+    world = world.setAgentState(2, 72.0, 4.30, -6.5, 0, cfg.sigma_agent);
+    world.agents(2).length = 4.5; world.agents(2).width = 1.8;
+    
+    for i = 3:cfg.n_agents, world = world.setAgentState(i, -100, -100, 0, 0, cfg.sigma_agent); end
+    
+    % Static Obstacle 1: Roadside Stall on right shoulder
+    world = world.setStaticObstacle(1, 25.0, 0.40, 2.20, 1.20);
+    for j = 2:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+end
+
+function world = scenario_sih_hero_candidate_B(world, cfg)
+    % Candidate B: Early Oncoming Encounter (Wider Gap)
+    % Oncoming starts further back at x=80m, v=-7.0 m/s
+    world = world.setEgoState(10.0, 1.80, 0, 5.0);
+    
+    world = world.setAgentState(1, 32.0, 1.80, 2.8, 0, cfg.sigma_agent);
+    world.agents(1).length = 2.5; world.agents(1).width = 1.3;
+    
+    world = world.setAgentState(2, 80.0, 4.30, -7.0, 0, cfg.sigma_agent);
+    world.agents(2).length = 4.5; world.agents(2).width = 1.8;
+    
+    for i = 3:cfg.n_agents, world = world.setAgentState(i, -100, -100, 0, 0, cfg.sigma_agent); end
+    
+    world = world.setStaticObstacle(1, 24.0, 0.30, 2.50, 1.20);
+    for j = 2:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+end
+
+function world = scenario_sih_hero_candidate_C(world, cfg)
+    % Candidate C: Tight Bottleneck Yield-to-Overtake
+    % Oncoming starts closer at x=65m, v=-6.0 m/s
+    world = world.setEgoState(10.0, 1.80, 0, 5.0);
+    
+    world = world.setAgentState(1, 38.0, 1.80, 3.5, 0, cfg.sigma_agent);
+    world.agents(1).length = 2.5; world.agents(1).width = 1.3;
+    
+    world = world.setAgentState(2, 65.0, 4.20, -6.0, 0, cfg.sigma_agent);
+    world.agents(2).length = 4.5; world.agents(2).width = 1.8;
+    
+    for i = 3:cfg.n_agents, world = world.setAgentState(i, -100, -100, 0, 0, cfg.sigma_agent); end
+    
+    world = world.setStaticObstacle(1, 30.0, 0.50, 2.20, 1.20);
+    for j = 2:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+end
+
+function world = scenario_sih_hero_candidate_D(world, cfg)
+    % Candidate D: High-Speed Interaction (Ego v0=6.0 m/s, Oncoming v=-8.0 m/s)
+    world = world.setEgoState(10.0, 1.80, 0, 6.0);
+    
+    world = world.setAgentState(1, 40.0, 1.80, 3.0, 0, cfg.sigma_agent);
+    world.agents(1).length = 2.5; world.agents(1).width = 1.3;
+    
+    world = world.setAgentState(2, 80.0, 4.40, -8.0, 0, cfg.sigma_agent);
+    world.agents(2).length = 4.5; world.agents(2).width = 1.8;
+    
+    for i = 3:cfg.n_agents, world = world.setAgentState(i, -100, -100, 0, 0, cfg.sigma_agent); end
+    
+    world = world.setStaticObstacle(1, 32.0, 0.40, 2.00, 1.20);
+    for j = 2:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
 end
 
 

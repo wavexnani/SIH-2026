@@ -261,6 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ====================================================================
        CANVAS RENDERING ENGINE
        ==================================================================== */
+    /* ====================================================================
+       CANVAS RENDERING ENGINE
+       ==================================================================== */
     renderFrame() {
       if (!this.ctx || !this.data || !this.data.timesteps) return;
       const step = this.data.timesteps[this.currentStep];
@@ -275,17 +278,16 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillRect(0, 0, width, height);
 
       // Camera centering around Ego vehicle
-      const egoX = step.ego ? step.ego.x : (step.groundTruth ? step.groundTruth.ego.x : 10);
+      const egoX = step.ego ? step.ego.x : (step.groundTruth && step.groundTruth.ego ? step.groundTruth.ego.x : 10);
       const roadLength = this.data.metadata ? this.data.metadata.road_length : 150;
       const roadWidth = this.data.metadata ? this.data.metadata.road_width : 6;
       
       // Auto-scale to fit road vertically with margins
       this.scale = height / (roadWidth + 8);
-      const centerY = height / 2;
 
-      // Camera offset horizontally: keep Ego near 25% from left
+      // Camera offset horizontally & vertically: center road (y=roadWidth/2) on screen
       this.offsetX = width * 0.25 - egoX * this.scale;
-      this.offsetY = centerY;
+      this.offsetY = height / 2 + (roadWidth / 2) * this.scale;
 
       ctx.save();
       ctx.translate(this.offsetX, this.offsetY);
@@ -372,11 +374,13 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     drawStaticObstacles(obsList) {
+      if (!obsList) return;
+      const list = Array.isArray(obsList) ? obsList : [obsList];
       const ctx = this.ctx;
       const s = this.scale;
 
-      obsList.forEach(obs => {
-        if (obs.x < -50) return;
+      list.forEach(obs => {
+        if (!obs || obs.x === undefined || obs.x < -50) return;
         ctx.fillStyle = 'rgba(248,81,73,0.3)';
         ctx.strokeStyle = '#f85149';
         ctx.lineWidth = 1.5;
@@ -420,9 +424,10 @@ document.addEventListener('DOMContentLoaded', () => {
     drawAgentPredictions(preds) {
       const ctx = this.ctx;
       const s = this.scale;
+      const list = Array.isArray(preds) ? preds : [preds];
 
-      preds.forEach(p => {
-        if (!p.x_traj || !p.x_traj.length) return;
+      list.forEach(p => {
+        if (!p || !p.x_traj || !p.x_traj.length) return;
         ctx.strokeStyle = 'rgba(188,140,255,0.7)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
@@ -476,8 +481,10 @@ document.addEventListener('DOMContentLoaded', () => {
     drawObservedAgents(obsAgents) {
       const ctx = this.ctx;
       const s = this.scale;
+      const list = Array.isArray(obsAgents) ? obsAgents : [obsAgents];
 
-      obsAgents.forEach(ag => {
+      list.forEach(ag => {
+        if (!ag || ag.x === undefined || ag.x < -50) return;
         ctx.strokeStyle = '#d29922';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
@@ -496,9 +503,10 @@ document.addEventListener('DOMContentLoaded', () => {
     drawGroundTruthAgents(agents) {
       const ctx = this.ctx;
       const s = this.scale;
+      const list = Array.isArray(agents) ? agents : [agents];
 
-      agents.forEach(ag => {
-        if (ag.x < -50) return;
+      list.forEach(ag => {
+        if (!ag || ag.x === undefined || ag.x < -50) return;
         const L = ag.length || 4.7;
         const W = ag.width || 1.8;
         const heading = Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
@@ -792,19 +800,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderMPCPanel(st) {
       const mpc = st.mpc || {};
-      const statusStr = mpc.status === 0 ? 'SUCCESS (0)' : `SOFT FALLBACK (${mpc.status})`;
+      const isHardQP = !mpc.is_soft;
+      const statusStr = isHardQP ? `SUCCESS (Status ${mpc.status !== undefined ? mpc.status : 1})` : `SOFT FALLBACK (${mpc.status})`;
       const cmd = mpc.u_cmd || [0, 0];
 
       return `
         <div class="panel-section">
           <div class="panel-header">
             <h2>🎯 QP-MPC Trajectory Solver</h2>
-            <span class="panel-badge ${mpc.status === 0 ? 'safe-tag' : 'override-tag'}">${mpc.status === 0 ? 'Hard QP' : 'Soft QP'}</span>
+            <span class="panel-badge ${isHardQP ? 'safe-tag' : 'override-tag'}">${isHardQP ? 'Hard QP' : 'Soft QP'}</span>
           </div>
           <div class="panel-body">
             <div class="panel-row">
               <span class="panel-key">Hildreth Solver Status</span>
-              <span class="panel-val ${mpc.status === 0 ? 'safe-tag' : 'override-tag'}">${statusStr}</span>
+              <span class="panel-val ${isHardQP ? 'safe-tag' : 'override-tag'}">${statusStr}</span>
             </div>
             <div class="panel-row">
               <span class="panel-key">Solve Execution Time</span>
