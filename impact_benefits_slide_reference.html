@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH26037 - Impact & Benefits Slide Reference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Base Reset & Variables */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-canvas: #ffffff;
+            --bg-page: #0b0f19;
+            --navy-primary: #0f172a;
+            --navy-secondary: #1e293b;
+            --blue-accent: #2563eb;
+            --blue-dark: #1d4ed8;
+            --blue-light: #eff6ff;
+            --blue-border: #bfdbfe;
+            --emerald-accent: #059669;
+            --emerald-light: #ecfdf5;
+            --emerald-border: #a7f3d0;
+            --indigo-accent: #4f46e5;
+            --indigo-light: #eef2ff;
+            --indigo-border: #c7d2fe;
+            --amber-accent: #d97706;
+            --amber-light: #fffbeb;
+            --amber-border: #fde68a;
+            --slate-border: #cbd5e1;
+            --slate-bg: #f8fafc;
+            --slate-muted: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 1920x813 Exact Canvas Container */
+        .slide-canvas {
+            width: 1920px;
+            height: 813px;
+            min-width: 1920px;
+            min-height: 813px;
+            max-width: 1920px;
+            max-height: 813px;
+            background-color: var(--bg-canvas);
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 22px;
+            border: 1px solid var(--slate-border);
+        }
+
+        /* Header Layout */
+        .slide-header {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .project-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--blue-accent);
+        }
+
+        .slide-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--navy-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-subtitle {
+            font-size: 11.5px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-left: 6px;
+            padding-left: 10px;
+            border-left: 2px solid #cbd5e1;
+        }
+
+        .header-right-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .dot-demo {
+            width: 7px;
+            height: 7px;
+            background-color: var(--blue-accent);
+            border-radius: 50%;
+        }
+
+        .dot-prop {
+            width: 7px;
+            height: 7px;
+            border: 1.5px solid var(--amber-accent);
+            border-radius: 50%;
+            background-color: #ffffff;
+        }
+
+        /* Value Chain Conceptual Centerpiece Banner */
+        .value-chain-banner {
+            height: 50px;
+            background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 6px;
+            padding: 6px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .chain-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chain-title-tag {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chain-statement {
+            font-size: 10.5px;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        .chain-statement strong {
+            color: #f8fafc;
+        }
+
+        .chain-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .chain-node {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: 0.02em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chain-node-highlight {
+            background: rgba(37, 99, 235, 0.3);
+            border-color: #60a5fa;
+            color: #ffffff;
+        }
+
+        .chain-arrow {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        /* 4 Capability Cards Grid */
+        .cards-grid {
+            height: 505px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .b-card {
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid var(--slate-border);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+
+        .b-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        /* Color Theme Variants for 4 Cards */
+        .b-card-1::before { background-color: var(--blue-accent); }
+        .b-card-2::before { background-color: var(--indigo-accent); }
+        .b-card-3::before { background-color: var(--emerald-accent); }
+        .b-card-4::before { background-color: var(--amber-accent); }
+
+        .b-card-1 { background-color: #fafcff; }
+        .b-card-2 { background-color: #fafaff; }
+        .b-card-3 { background-color: #f6fdfa; }
+        .b-card-4 { background-color: #fffdfa; }
+
+        /* Card Header */
+        .card-header-block {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .card-icon-box {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .b-card-1 .card-icon-box { background: var(--blue-light); color: var(--blue-accent); border: 1px solid var(--blue-border); }
+        .b-card-2 .card-icon-box { background: var(--indigo-light); color: var(--indigo-accent); border: 1px solid var(--indigo-border); }
+        .b-card-3 .card-icon-box { background: var(--emerald-light); color: var(--emerald-accent); border: 1px solid var(--emerald-border); }
+        .b-card-4 .card-icon-box { background: var(--amber-light); color: var(--amber-accent); border: 1px solid var(--amber-border); }
+
+        .card-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-heading {
+            font-size: 12.5px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--navy-primary);
+        }
+
+        .card-subheading {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 1px;
+            line-height: 1.25;
+        }
+
+        /* Capability Badges */
+        .badge-demonstrated {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid var(--blue-border);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 8.5px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            width: max-content;
+        }
+
+        .badge-proposed {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid var(--amber-border);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 8.5px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            width: max-content;
+        }
+
+        /* Card Body Content */
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .main-statement-box {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 7px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--navy-primary);
+            line-height: 1.35;
+        }
+
+        .mechanism-text {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            line-height: 1.35;
+            font-weight: 500;
+        }
+
+        .benefit-box {
+            background: #ffffff;
+            border-left: 3.5px solid var(--blue-accent);
+            border-radius: 4px;
+            padding: 7px 9px;
+            font-size: 10.5px;
+            color: var(--navy-primary);
+            line-height: 1.35;
+        }
+
+        .b-card-1 .benefit-box { border-left-color: var(--blue-accent); background: #f0f7ff; }
+        .b-card-2 .benefit-box { border-left-color: var(--indigo-accent); background: #f5f3ff; }
+        .b-card-3 .benefit-box { border-left-color: var(--emerald-accent); background: #ecfdf5; }
+        .b-card-4 .benefit-box { border-left-color: var(--amber-accent); background: #fffbeb; }
+
+        .benefit-box strong {
+            color: var(--navy-primary);
+            font-weight: 800;
+        }
+
+        /* Mini Graphics Inside Cards */
+        .mini-graphic {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .graphic-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 9.5px;
+            font-weight: 700;
+        }
+
+        .graphic-item-bad {
+            color: #dc2626;
+            background: #fef2f2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #fecaca;
+        }
+
+        .graphic-item-good {
+            color: #059669;
+            background: #ecfdf5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #a7f3d0;
+        }
+
+        .graphic-arrow {
+            color: #94a3b8;
+            font-size: 9px;
+        }
+
+        /* Traffic Negotiation Flow */
+        .mini-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 3px;
+            background: #ffffff;
+            border: 1px solid var(--indigo-border);
+            border-radius: 5px;
+            padding: 5px 6px;
+        }
+
+        .mini-flow-node {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: var(--indigo-accent);
+            background: var(--indigo-light);
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-align: center;
+        }
+
+        /* Safe Stop Bottleneck Evidence Tag */
+        .secondary-tag-box {
+            background: var(--amber-light);
+            border: 1px solid var(--amber-border);
+            border-radius: 5px;
+            padding: 5px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 9.5px;
+        }
+
+        .secondary-tag-title {
+            font-weight: 800;
+            color: #92400e;
+        }
+
+        .secondary-tag-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--amber-accent);
+            background: #ffffff;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid var(--amber-border);
+        }
+
+        /* Staged Evolution Flow for Card 4 */
+        .staged-flow-box {
+            background: #ffffff;
+            border: 1px solid var(--amber-border);
+            border-radius: 5px;
+            padding: 5px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 9px;
+        }
+
+        .staged-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .staged-label-cur {
+            font-weight: 800;
+            color: var(--blue-accent);
+        }
+
+        .staged-label-fut {
+            font-weight: 800;
+            color: var(--amber-accent);
+        }
+
+        .staged-text {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Card Footers */
+        .card-note {
+            font-size: 9.5px;
+            color: var(--text-light);
+            font-style: italic;
+            margin-top: 2px;
+            line-height: 1.25;
+        }
+
+        /* Bottom Section: Applications + Roadmap Strip */
+        .bottom-section {
+            height: 160px;
+            display: grid;
+            grid-template-columns: 0.8fr 1.2fr;
+            gap: 14px;
+        }
+
+        .bottom-panel {
+            background: #f8fafc;
+            border: 1px solid var(--slate-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--navy-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-subtitle {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        /* Potential Applications Grid */
+        .app-pills-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .app-pill {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .app-pill-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--navy-primary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .app-pill-desc {
+            font-size: 8.5px;
+            color: var(--text-muted);
+            line-height: 1.2;
+        }
+
+        .app-footer-tag {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: var(--amber-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Roadmap Horizontal Flow */
+        .roadmap-flow {
+            display: grid;
+            grid-template-columns: 1fr 18px 1fr 18px 1fr;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .roadmap-stage {
+            background: #ffffff;
+            border-radius: 6px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            height: 95px;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .stage-current {
+            border: 2px solid var(--blue-accent);
+            background: #f0f7ff;
+        }
+
+        .stage-next {
+            border: 1.5px dashed var(--amber-accent);
+            background: #fffdfa;
+        }
+
+        .stage-target {
+            border: 1.5px dashed var(--emerald-accent);
+            background: #f6fdfa;
+        }
+
+        .stage-badge {
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stage-current .stage-badge { color: var(--blue-accent); }
+        .stage-next .stage-badge { color: var(--amber-accent); }
+        .stage-target .stage-badge { color: var(--emerald-accent); }
+
+        .stage-tag-demo {
+            background: var(--blue-accent);
+            color: #ffffff;
+            font-size: 7.5px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 800;
+        }
+
+        .stage-tag-fut {
+            background: rgba(0,0,0,0.06);
+            color: var(--text-muted);
+            font-size: 7.5px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 800;
+        }
+
+        .stage-name {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--navy-primary);
+        }
+
+        .stage-desc {
+            font-size: 9px;
+            color: var(--text-muted);
+            line-height: 1.25;
+            font-weight: 500;
+        }
+
+        .roadmap-arrow {
+            text-align: center;
+            font-size: 14px;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        /* Developer Metadata Section (OUTSIDE CANVAS) */
+        .developer-metadata {
+            width: 1920px;
+            margin-top: 24px;
+            background: #1e293b;
+            color: #cbd5e1;
+            border-radius: 8px;
+            padding: 18px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            border: 1px solid #334155;
+        }
+
+        .dev-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dev-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        .dev-table th, .dev-table td {
+            text-align: left;
+            padding: 6px 10px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .dev-table th {
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        .dev-table td {
+            color: #e2e8f0;
+        }
+
+        .dev-tag-demo { color: #60a5fa; font-weight: 700; }
+        .dev-tag-eng { color: #4ade80; font-weight: 700; }
+        .dev-tag-prop { color: #fbbf24; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <!-- 1920x813 PPT Visual Canvas -->
+    <div class="slide-canvas">
+        
+        <!-- Header -->
+        <header class="slide-header">
+            <div class="header-left">
+                <div class="project-tag">SIH PROBLEM STATEMENT SIH26037 / #6037</div>
+                <div class="slide-title">
+                    IMPACT & BENEFITS
+                    <span class="title-subtitle">Turning unstructured-road constraints into adaptive planning decisions</span>
+                </div>
+            </div>
+            <div class="header-right-legend">
+                <div class="legend-item">
+                    <div class="dot-demo"></div>
+                    <span>DEMONSTRATED IN MIL</span>
+                </div>
+                <div class="legend-item">
+                    <div class="dot-prop"></div>
+                    <span>PROPOSED EXTENSION</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Conceptual Value Chain Banner -->
+        <div class="value-chain-banner">
+            <div class="chain-top">
+                <div class="chain-title-tag">WHY THIS ARCHITECTURE MATTERS • ARCHITECTURAL VALUE CHAIN</div>
+                <div class="chain-statement">
+                    Core value: <strong>adapting the vehicle’s local plan to road geometry, traffic interaction and available free space</strong>.
+                </div>
+            </div>
+            <div class="chain-flow">
+                <div class="chain-node">UNSTRUCTURED ROAD</div>
+                <div class="chain-arrow">➔</div>
+                <div class="chain-node">NO FIXED LANE ASSUMPTION</div>
+                <div class="chain-arrow">➔</div>
+                <div class="chain-node chain-node-highlight">DYNAMIC FREE SPACE</div>
+                <div class="chain-arrow">➔</div>
+                <div class="chain-node chain-node-highlight">INTERACTION-AWARE DECISION</div>
+                <div class="chain-arrow">➔</div>
+                <div class="chain-node">TOPOLOGY-AWARE TRAJECTORY</div>
+                <div class="chain-arrow">➔</div>
+                <div class="chain-node">SAFE VEHICLE ACTION</div>
+            </div>
+        </div>
+
+        <!-- 4 Capability-Driven Impact Cards -->
+        <div class="cards-grid">
+            
+            <!-- CARD 1: INFRASTRUCTURE INDEPENDENCE -->
+            <div class="b-card b-card-1">
+                <div>
+                    <div class="card-header-block">
+                        <div class="card-icon-box">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 19L10 5h4l6 14"></path>
+                                <path d="M12 5v14" stroke-dasharray="2 2"></path>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <div class="card-heading">INFRASTRUCTURE INDEPENDENCE</div>
+                            <div class="card-subheading">Planning without a predefined lane centerline</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-demonstrated">
+                        <span>● DEMONSTRATED IN SIMULATION</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="main-statement-box">
+                            “Planning does not require a predefined lane centerline.”
+                        </div>
+
+                        <p class="mechanism-text">
+                            <strong>Mechanism:</strong> The planner represents locally available drivable space as dynamic spatial bounds rather than treating lane geometry as the primary planning reference.
+                        </p>
+
+                        <!-- Mini Graphic -->
+                        <div class="mini-graphic">
+                            <div class="graphic-row">
+                                <span class="graphic-item-bad">FIXED LANE ✕</span>
+                                <span class="graphic-arrow">Requires painted markings</span>
+                            </div>
+                            <div class="graphic-row">
+                                <span class="graphic-item-good">DYNAMIC FREE SPACE ✓</span>
+                                <span class="graphic-arrow">Adapts to free corridors</span>
+                            </div>
+                        </div>
+
+                        <div class="benefit-box">
+                            <strong>Practical Benefit:</strong> Autonomous navigation can be evaluated on roads where lane markings are missing, degraded, or temporarily obstructed.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-note">
+                    Designed for lane-poor and unstructured environments.
+                </div>
+            </div>
+
+            <!-- CARD 2: ADAPTIVE TRAFFIC NEGOTIATION -->
+            <div class="b-card b-card-2">
+                <div>
+                    <div class="card-header-block">
+                        <div class="card-icon-box">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="6" cy="6" r="3"></circle>
+                                <circle cx="18" cy="6" r="3"></circle>
+                                <circle cx="12" cy="18" r="3"></circle>
+                                <line x1="6" y1="9" x2="12" y2="15"></line>
+                                <line x1="18" y1="9" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <div class="card-heading">ADAPTIVE TRAFFIC NEGOTIATION</div>
+                            <div class="card-subheading">Traffic interaction changes the maneuver</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-demonstrated">
+                        <span>● DEMONSTRATED IN TESTED SCENARIOS</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="main-statement-box">
+                            “Traffic interaction changes the maneuver, not just the trajectory.”
+                        </div>
+
+                        <p class="mechanism-text">
+                            <strong>Mechanism:</strong> Classifies interaction conditions and evaluates behavior decisions (maintain, follow, yield, overtake) prior to trajectory optimization.
+                        </p>
+
+                        <!-- Mini Flow -->
+                        <div class="mini-flow">
+                            <div class="mini-flow-node">Interaction</div>
+                            <div style="font-size:8px; color:#64748b;">➔</div>
+                            <div class="mini-flow-node">Follow / Yield / Overtake</div>
+                            <div style="font-size:8px; color:#64748b;">➔</div>
+                            <div class="mini-flow-node">Topology</div>
+                        </div>
+
+                        <div class="benefit-box">
+                            <strong>Practical Benefit:</strong> The vehicle adapts its local maneuver to surrounding traffic behavior instead of treating obstacles as static path points.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-note">
+                    Evaluates alternative local path topologies (Left ↔ Right) when road space permits.
+                </div>
+            </div>
+
+            <!-- CARD 3: SAFE DEGRADATION -->
+            <div class="b-card b-card-3">
+                <div>
+                    <div class="card-header-block">
+                        <div class="card-icon-box">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                <path d="m9 12 2 2 4-4"></path>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <div class="card-heading">SAFE DEGRADATION</div>
+                            <div class="card-subheading">Fail-safe stopping in non-traversable bottlenecks</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-demonstrated">
+                        <span>● DEMONSTRATED IN SIMULATION</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="main-statement-box">
+                            “When no feasible passage exists, the system stops rather than force a path.”
+                        </div>
+
+                        <p class="mechanism-text">
+                            <strong>Mechanism:</strong> Combines feasibility-aware corridor construction with an independent safety validation layer.
+                        </p>
+
+                        <!-- Secondary Tag Box -->
+                        <div class="secondary-tag-box">
+                            <span class="secondary-tag-title">TESTED BOTTLENECK RESULT</span>
+                            <span class="secondary-tag-val">Wgap &lt; 1.60 m ➔ Standstill</span>
+                        </div>
+
+                        <div class="benefit-box">
+                            <strong>Practical Benefit:</strong> Infeasible road geometry becomes a controlled failure condition rather than an instruction to force passage through narrow space.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-note">
+                    Demonstrated in tested narrow-gap bottleneck scenarios.
+                </div>
+            </div>
+
+            <!-- CARD 4: SCALABLE VEHICLE PLATFORM -->
+            <div class="b-card b-card-4">
+                <div>
+                    <div class="card-header-block">
+                        <div class="card-icon-box">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                                <line x1="8" y1="21" x2="16" y2="21"></line>
+                                <line x1="12" y1="17" x2="12" y2="21"></line>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <div class="card-heading">SCALABLE VEHICLE PLATFORM</div>
+                            <div class="card-subheading">Planning stack decoupled from future sensing</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-proposed">
+                        <span>○ PROPOSED EXTENSION</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="main-statement-box">
+                            “Planning remains decoupled from the future sensing platform.”
+                        </div>
+
+                        <p class="mechanism-text">
+                            <strong>Mechanism:</strong> The planning layer consumes object states, uncertainty and space bounds, allowing future perception suites to evolve independently.
+                        </p>
+
+                        <!-- Staged Flow Box -->
+                        <div class="staged-flow-box">
+                            <div class="staged-row">
+                                <span class="staged-label-cur">CURRENT MIL:</span>
+                                <span class="staged-text">Synthetic / noisy observations</span>
+                            </div>
+                            <div class="staged-row">
+                                <span class="staged-label-fut">FUTURE SCOPE:</span>
+                                <span class="staged-text">Camera + LiDAR + Radar fusion</span>
+                            </div>
+                        </div>
+
+                        <div class="benefit-box">
+                            <strong>Practical Benefit:</strong> Creates a staged path from algorithm validation in MIL to realistic sensor simulation and vehicle platform integration.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-note">
+                    Decoupled architecture enables independent perception development.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Section: Potential Applications + Progressive Validation Pathway -->
+        <div class="bottom-section">
+            
+            <!-- Left: Potential Applications -->
+            <div class="bottom-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        POTENTIAL APPLICATIONS
+                    </div>
+                    <div class="app-footer-tag">APPLICATION POTENTIAL • NOT DEPLOYED</div>
+                </div>
+
+                <div class="app-pills-grid">
+                    <div class="app-pill">
+                        <div class="app-pill-title">Semi-Urban / Rural</div>
+                        <div class="app-pill-desc">Unpaved & lane-poor routes with mixed traffic</div>
+                    </div>
+                    <div class="app-pill">
+                        <div class="app-pill-title">Last-Mile Logistics</div>
+                        <div class="app-pill-desc">Access ways & informal depot yards</div>
+                    </div>
+                    <div class="app-pill">
+                        <div class="app-pill-title">ADAS / Assistance</div>
+                        <div class="app-pill-desc">Local obstacle avoidance fallback</div>
+                    </div>
+                    <div class="app-pill">
+                        <div class="app-pill-title">Agricultural Fleets</div>
+                        <div class="app-pill-desc">Corridor navigation in field settings</div>
+                    </div>
+                    <div class="app-pill" style="grid-column: span 2;">
+                        <div class="app-pill-title">Partially Structured Fleets</div>
+                        <div class="app-pill-desc">Mining, construction & industrial access corridors</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Validation Pathway -->
+            <div class="bottom-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        PROGRESSIVE VALIDATION & DEPLOYMENT PATHWAY
+                    </div>
+                    <div class="panel-subtitle">STAGED ALGORITHM TO VEHICLE DEPLOYMENT PATHWAY</div>
+                </div>
+
+                <div class="roadmap-flow">
+                    <!-- Stage 1 -->
+                    <div class="roadmap-stage stage-current">
+                        <div class="stage-badge">
+                            <span>STAGE 1 — CURRENT</span>
+                            <span class="stage-tag-demo">DEMONSTRATED</span>
+                        </div>
+                        <div class="stage-name">MATLAB / Simulink MIL</div>
+                        <div class="stage-desc">Core closed-loop planning & safety validation under simulated noise & dynamic obstacles.</div>
+                    </div>
+
+                    <div class="roadmap-arrow">➔</div>
+
+                    <!-- Stage 2 -->
+                    <div class="roadmap-stage stage-next">
+                        <div class="stage-badge">
+                            <span>STAGE 2 — NEXT</span>
+                            <span class="stage-tag-fut">PROPOSED</span>
+                        </div>
+                        <div class="stage-name">RoadRunner + Sensor Simulation</div>
+                        <div class="stage-desc">ASAM OpenDRIVE Indian road scenes & synthetic Camera/LiDAR/Radar perception.</div>
+                    </div>
+
+                    <div class="roadmap-arrow">➔</div>
+
+                    <!-- Stage 3 -->
+                    <div class="roadmap-stage stage-target">
+                        <div class="stage-badge">
+                            <span>STAGE 3 — TARGET</span>
+                            <span class="stage-tag-fut">FUTURE SCOPE</span>
+                        </div>
+                        <div class="stage-name">SIL ➔ HIL ➔ Field Validation</div>
+                        <div class="stage-desc">Embedded automotive compute (ARM/Orin), hardware-in-the-loop, & closed-course vehicle testing.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Developer Audit Metadata (OUTSIDE 1920x813 CANVAS) -->
+    <div class="developer-metadata">
+        <div class="dev-title">
+            <span>[DEVELOPER AUDIT] Architectural Verification & Evidentiary Classification Map</span>
+            <span>SIH26037 FORENSIC TRANSPARENCY</span>
+        </div>
+        <table class="dev-table">
+            <thead>
+                <tr>
+                    <th>Capability / Statement</th>
+                    <th>Classification</th>
+                    <th>Architectural Mechanism</th>
+                    <th>Source Artifact / Code Base</th>
+                    <th>Verification Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Infrastructure Independence</td>
+                    <td><span class="dev-tag-eng">Engineering Consequence</span></td>
+                    <td>Dynamic spatial bounds replacing painted lane centerlines</td>
+                    <td><code>planning/FreeSpaceBoundProvider.m</code></td>
+                    <td>VERIFIED (MIL Simulation)</td>
+                </tr>
+                <tr>
+                    <td>Adaptive Traffic Negotiation</td>
+                    <td><span class="dev-tag-eng">Engineering Consequence</span></td>
+                    <td>Interaction classification & multi-topology evaluation</td>
+                    <td><code>planning/CoordinationDecisionLayer.m</code></td>
+                    <td>VERIFIED (Scenario 01-06)</td>
+                </tr>
+                <tr>
+                    <td>Safe Degradation & Safe Stop</td>
+                    <td><span class="dev-tag-demo">Demonstrated Result</span></td>
+                    <td>Feasibility-aware corridor + independent SafetyFilter standstill</td>
+                    <td><code>planning/SafetyFilter.m</code> (Wgap &lt; 1.60 m)</td>
+                    <td>VERIFIED (Scenario 03 Audit)</td>
+                </tr>
+                <tr>
+                    <td>Scalable Sensing Platform</td>
+                    <td><span class="dev-tag-prop">Proposed Extension</span></td>
+                    <td>Decoupled object/bound interfaces for future sensor fusion</td>
+                    <td><code>planning/MultiVehicleDetector.m</code></td>
+                    <td>PROPOSED / ROADMAP</td>
+                </tr>
+                <tr>
+                    <td>Societal / Economic Metrics</td>
+                    <td><span class="dev-tag-prop">Excluded</span></td>
+                    <td>No unsupported % accident/death/fuel/cost claims present</td>
+                    <td>N/A (Strict Compliance with Evidence Guidelines)</td>
+                    <td>AUDITED & CLEAN</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

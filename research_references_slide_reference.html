@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH26037 - Research & References Slide Reference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Base Reset & Design Tokens */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-canvas: #ffffff;
+            --bg-page: #080c14;
+            --navy-primary: #0f172a;
+            --navy-secondary: #1e293b;
+            
+            /* Status Colors */
+            /* CURRENT: Blue / Teal */
+            --status-cur-text: #0284c7;
+            --status-cur-bg: #f0f9ff;
+            --status-cur-border: #bae6fd;
+
+            /* RESEARCH BASIS: Purple / Violet */
+            --status-res-text: #7c3aed;
+            --status-res-bg: #f5f3ff;
+            --status-res-border: #ddd6fe;
+
+            /* PROPOSED: Amber / Orange */
+            --status-pro-text: #d97706;
+            --status-pro-bg: #fffbeb;
+            --status-pro-border: #fde68a;
+
+            --slate-border: #cbd5e1;
+            --slate-bg: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 1920x813 Exact Slide Canvas Container */
+        .slide-canvas {
+            width: 1920px;
+            height: 813px;
+            min-width: 1920px;
+            min-height: 813px;
+            max-width: 1920px;
+            max-height: 813px;
+            background-color: var(--bg-canvas);
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 18px;
+            border: 1px solid var(--slate-border);
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 8.5px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .badge-cur { background: var(--status-cur-bg); color: var(--status-cur-text); border: 1px solid var(--status-cur-border); }
+        .badge-res { background: var(--status-res-bg); color: var(--status-res-text); border: 1px solid var(--status-res-border); }
+        .badge-pro { background: var(--status-pro-bg); color: var(--status-pro-text); border: 1px solid var(--status-pro-border); }
+
+        /* TOP HEADER (~12% height => ~74px) */
+        .slide-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .slide-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--navy-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-subtitle {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.01em;
+        }
+
+        .header-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .dot-cur { width: 7px; height: 7px; border-radius: 50%; background: var(--status-cur-text); }
+        .dot-res { width: 7px; height: 7px; border-radius: 50%; background: var(--status-res-text); }
+        .dot-pro { width: 7px; height: 7px; border-radius: 50%; background: var(--status-pro-text); }
+
+        .header-right-label {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .proj-tag-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--status-cur-text);
+            background: var(--status-cur-bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--status-cur-border);
+        }
+
+        .proj-tag-desc {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        /* MAIN MIDDLE REGION (Left Panel 42% / Right Panel 56% => ~565px) */
+        .main-region {
+            height: 565px;
+            display: grid;
+            grid-template-columns: 0.42fr 0.58fr;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .panel-container {
+            background: var(--slate-bg);
+            border: 1px solid var(--slate-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .panel-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1.5px solid #e2e8f0;
+        }
+
+        .panel-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--navy-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* LEFT PANEL: VERTICAL FLOW (6 BLOCKS + 1 SECONDARY CARD) */
+        .left-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .flow-block {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .block-title {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--navy-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .block-text {
+            font-size: 9px;
+            color: var(--text-muted);
+            line-height: 1.25;
+            font-weight: 500;
+        }
+
+        .block-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 2px;
+            font-size: 8.5px;
+        }
+
+        .block-mapping {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--navy-secondary);
+            background: #f1f5f9;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .block-tag {
+            font-size: 8.5px;
+            font-weight: 600;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            font-size: 8px;
+            color: #94a3b8;
+            line-height: 1;
+            margin: -2px 0;
+        }
+
+        /* SECONDARY CARD: VEHICLE MODEL */
+        .secondary-card {
+            background: #f0f9ff;
+            border: 1px dashed #7dd3fc;
+            border-radius: 6px;
+            padding: 5px 9px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 3px;
+        }
+
+        .sec-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sec-title {
+            font-size: 9.5px;
+            font-weight: 800;
+            color: var(--navy-primary);
+        }
+
+        .sec-math {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            color: #0369a1;
+        }
+
+        .sec-file {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8.5px;
+            font-weight: 700;
+            background: #ffffff;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #bae6fd;
+            color: var(--navy-primary);
+        }
+
+        /* RIGHT PANEL: KEY RESEARCH SOURCES + CONTRIBUTION BOX */
+        .right-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        /* Engineering Contribution Highlight Box */
+        .contribution-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .contrib-title {
+            font-size: 9.5px;
+            font-weight: 800;
+            color: #1e40af;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .contrib-text {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--navy-primary);
+            line-height: 1.25;
+        }
+
+        .contrib-footer {
+            font-size: 8.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* References Grid (4x2 layout for 8 compact cards) */
+        .refs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .ref-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px 9px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .ref-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .ref-num-tag {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ref-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--navy-secondary);
+            background: #f1f5f9;
+            padding: 1px 4px;
+            border-radius: 3px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .ref-keyword {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--navy-primary);
+        }
+
+        .ref-citation {
+            font-size: 8.5px;
+            color: var(--text-muted);
+            line-height: 1.25;
+        }
+
+        .ref-citation strong {
+            color: var(--navy-primary);
+            font-weight: 700;
+        }
+
+        .ref-relevance {
+            font-size: 8.5px;
+            color: var(--text-light);
+            line-height: 1.2;
+            font-style: italic;
+        }
+
+        .ref-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 2px;
+            padding-top: 3px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .ref-link-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ref-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 8px;
+            font-weight: 800;
+            color: #ffffff;
+            background: var(--navy-primary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+
+        .ref-btn:hover {
+            background: var(--status-cur-text);
+        }
+
+        .ref-btn-secondary {
+            background: #e2e8f0;
+            color: var(--navy-primary);
+            border: 1px solid #cbd5e1;
+        }
+
+        .ref-btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        /* BOTTOM MAPPING STRIP (~18% height => ~136px) */
+        .bottom-strip-panel {
+            height: 136px;
+            background: var(--slate-bg);
+            border: 1px solid var(--slate-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .strip-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .strip-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--navy-primary);
+        }
+
+        .strip-subtitle {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .strip-sequence {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .strip-node {
+            border-radius: 6px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 4px;
+            min-height: 80px;
+        }
+
+        /* Visual styling per status */
+        .node-cur {
+            background: #ffffff;
+            border: 1.5px solid var(--status-cur-text);
+            box-shadow: 0 1px 3px rgba(2, 132, 199, 0.1);
+        }
+
+        .node-res {
+            background: #ffffff;
+            border: 1.5px solid var(--status-res-text);
+            box-shadow: 0 1px 3px rgba(124, 58, 237, 0.08);
+        }
+
+        .node-pro {
+            background: #ffffff;
+            border: 1.5px dashed var(--status-pro-text);
+            box-shadow: 0 1px 3px rgba(217, 119, 6, 0.08);
+        }
+
+        .node-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .node-source-name {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--navy-primary);
+        }
+
+        .node-arrow {
+            text-align: center;
+            font-size: 9px;
+            font-weight: 800;
+            color: #94a3b8;
+            margin: 1px 0;
+        }
+
+        .node-target {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8px;
+            font-weight: 700;
+            padding: 2px 4px;
+            border-radius: 3px;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .node-cur .node-target { background: var(--status-cur-bg); color: var(--status-cur-text); border: 1px solid var(--status-cur-border); }
+        .node-res .node-target { background: var(--status-res-bg); color: var(--status-res-text); border: 1px solid var(--status-res-border); }
+        .node-pro .node-target { background: var(--status-pro-bg); color: var(--status-pro-text); border: 1px solid var(--status-pro-border); }
+
+        /* DEVELOPER METADATA & EVIDENTIARY AUDIT PANEL (OUTSIDE 1920x813 CANVAS) */
+        .developer-metadata {
+            width: 1920px;
+            margin-top: 24px;
+            background: #0f172a;
+            color: #cbd5e1;
+            border-radius: 8px;
+            padding: 18px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            border: 1px solid #334155;
+        }
+
+        .dev-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dev-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        .dev-table th, .dev-table td {
+            text-align: left;
+            padding: 5px 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .dev-table th {
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 9.5px;
+        }
+
+        .dev-table td {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1920x813 Exact Presentation Canvas -->
+    <div class="slide-canvas">
+        
+        <!-- TOP HEADER (~12% height) -->
+        <header class="slide-header">
+            <div class="header-left">
+                <div class="slide-title">
+                    RESEARCH & REFERENCES
+                </div>
+                <div class="title-subtitle">
+                    Scientific foundations → project implementation → future validation
+                </div>
+                <div class="header-legend">
+                    <div class="legend-item"><span class="dot-cur"></span> <span>CURRENT</span></div>
+                    <div class="legend-item"><span class="dot-res"></span> <span>RESEARCH BASIS</span></div>
+                    <div class="legend-item"><span class="dot-pro"></span> <span>PROPOSED</span></div>
+                </div>
+            </div>
+
+            <div class="header-right-label">
+                <div class="proj-tag-code">SIH26037</div>
+                <div class="proj-tag-desc">Adaptive Path Planning for Unstructured Indian Roads</div>
+            </div>
+        </header>
+
+        <!-- MAIN MIDDLE REGION (42% Left / 58% Right) -->
+        <div class="main-region">
+            
+            <!-- LEFT MAIN PANEL: SCIENTIFIC CONCEPTS IN OUR SYSTEM -->
+            <div class="panel-container">
+                <div class="panel-title-row">
+                    <div class="panel-title">SCIENTIFIC CONCEPTS IN OUR SYSTEM</div>
+                    <span class="badge badge-cur">6 CONCEPT BLOCKS</span>
+                </div>
+
+                <div class="left-flow">
+                    <!-- BLOCK 1 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">1. Indian Unstructured Roads</div>
+                            <span class="badge badge-res">RESEARCH BASIS</span>
+                        </div>
+                        <div class="block-text">Heterogeneous traffic, weak lane structure and unconstrained road behavior.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">Scenario design motivation</span>
+                            <span class="block-tag">IDD — Varma et al., WACV 2019</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">▼</div>
+
+                    <!-- BLOCK 2 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">2. Dynamic Free-Space Representation</div>
+                            <span class="badge badge-cur">CURRENT</span>
+                        </div>
+                        <div class="block-text">Obstacle-aware lateral bounds replace dependence on a fixed lane centerline.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">FreeSpaceBoundProvider.m → y_min(x), y_max(x)</span>
+                            <span class="block-tag">Dynamic Corridor Model</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">▼</div>
+
+                    <!-- BLOCK 3 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">3. Multi-Topology Planning</div>
+                            <span class="badge badge-cur">CURRENT</span>
+                        </div>
+                        <div class="block-text">Alternative local passage strategies are evaluated before trajectory execution.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">CACRCPlanner.m</span>
+                            <span class="block-tag">Math: J_left ↔ J_right evaluation</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">▼</div>
+
+                    <!-- BLOCK 4 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">4. Constrained Model Predictive Control</div>
+                            <span class="badge badge-cur">CURRENT</span>
+                        </div>
+                        <div class="block-text">Predicts future vehicle motion and optimizes steering / acceleration under constraints.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">QPMPCPlanner.m (Np=20, Ts=0.1s)</span>
+                            <span class="block-tag">Research basis: Borrelli et al.</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">▼</div>
+
+                    <!-- BLOCK 5 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">5. Hildreth Dual QP</div>
+                            <span class="badge badge-cur">CURRENT</span>
+                        </div>
+                        <div class="block-text">Dual coordinate-descent solver for the constrained MPC quadratic program.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">QPMPCPlanner.m (hildreth_dual_qp)</span>
+                            <span class="block-tag">Research basis: Hildreth, 1957</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">▼</div>
+
+                    <!-- BLOCK 6 -->
+                    <div class="flow-block">
+                        <div class="block-header">
+                            <div class="block-title">6. Independent Safety Validation</div>
+                            <span class="badge badge-res">CURRENT + RESEARCH BASIS</span>
+                        </div>
+                        <div class="block-text">Vehicle footprint, road bounds and obstacle clearance are independently checked before actuation.</div>
+                        <div class="block-footer">
+                            <span class="block-mapping">SafetyFilter.m</span>
+                            <span class="block-tag">Kinematic check | Research basis: CBF literature</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECONDARY CARD: VEHICLE MODEL -->
+                <div class="secondary-card">
+                    <div class="sec-left">
+                        <div class="sec-title">5-State Vehicle Model</div>
+                        <div class="sec-math">[x, y, θ, v, δ]ᵀ</div>
+                        <div class="sec-file">BicycleModel.m</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="badge badge-cur">CURRENT</span>
+                        <span style="font-size: 8px; color: var(--text-light);">Polack et al., IV 2017</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT REFERENCE PANEL: KEY RESEARCH SOURCES -->
+            <div class="panel-container">
+                <div class="panel-title-row">
+                    <div class="panel-title">KEY RESEARCH SOURCES</div>
+                    <span class="badge badge-res">8 VERIFIED SOURCES</span>
+                </div>
+
+                <div class="right-content">
+                    <!-- OUR ENGINEERING CONTRIBUTION HIGHLIGHT BOX -->
+                    <div class="contribution-box">
+                        <div class="contrib-title">OUR ENGINEERING CONTRIBUTION</div>
+                        <div class="contrib-text">
+                            Dynamic free-space + interaction-aware behavior + dual-topology evaluation + constrained QP-MPC + independent safety validation
+                        </div>
+                        <div class="contrib-footer">
+                            Integrated for lane-poor, mixed-traffic road scenarios.
+                        </div>
+                    </div>
+
+                    <!-- REFERENCES GRID (4x2 Compact Cards) -->
+                    <div class="refs-grid">
+                        <!-- REF 01 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[01]</span>
+                                    <span class="ref-keyword">INDIAN UNSTRUCTURED ROADS</span>
+                                </div>
+                                <span class="badge badge-res">RESEARCH BASIS</span>
+                            </div>
+                            <div class="ref-citation">
+                                Varma et al., <strong>“IDD: A Dataset for Exploring Problems of Autonomous Navigation in Unconstrained Environments”</strong>, IEEE/CVF WACV 2019.
+                            </div>
+                            <div class="ref-relevance">Empirical basis for heterogeneous and unconstrained Indian road scenes.</div>
+                            <div class="ref-card-footer">
+                                <div class="ref-link-group">
+                                    <a href="https://doi.org/10.1109/WACV.2019.00190" target="_blank" class="ref-btn">SOURCE ↗</a>
+                                    <a href="https://idd.insaan.iiit.ac.in" target="_blank" class="ref-btn ref-btn-secondary">IDD Portal ↗</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- REF 02 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[02]</span>
+                                    <span class="ref-keyword">KINEMATIC BICYCLE MODEL</span>
+                                </div>
+                                <span class="badge badge-cur">CURRENT FOUNDATION</span>
+                            </div>
+                            <div class="ref-citation">
+                                Polack et al., <strong>“The Kinematic Bicycle Model: A Consistent Model for Planning Feasible Trajectories?”</strong>, IEEE IV 2017.
+                            </div>
+                            <div class="ref-relevance">Vehicle-motion model used for planning and simulation.</div>
+                            <div class="ref-card-footer">
+                                <a href="https://doi.org/10.1109/IVS.2017.7995800" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+
+                        <!-- REF 03 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[03]</span>
+                                    <span class="ref-keyword">MODEL PREDICTIVE CONTROL</span>
+                                </div>
+                                <span class="badge badge-res">RESEARCH BASIS</span>
+                            </div>
+                            <div class="ref-citation">
+                                Borrelli, Bemporad & Morari, <strong>“Predictive Control for Linear and Hybrid Systems”</strong>, Cambridge University Press.
+                            </div>
+                            <div class="ref-relevance">Theoretical basis for constrained predictive control.</div>
+                            <div class="ref-card-footer">
+                                <a href="https://doi.org/10.1017/9781139061759" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+
+                        <!-- REF 04 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[04]</span>
+                                    <span class="ref-keyword">QUADRATIC PROGRAMMING</span>
+                                </div>
+                                <span class="badge badge-cur">CURRENT</span>
+                            </div>
+                            <div class="ref-citation">
+                                Clifford Hildreth, <strong>“A Quadratic Programming Procedure”</strong>, Naval Research Logistics Quarterly, 1957.
+                            </div>
+                            <div class="ref-relevance">Direct research basis for the implemented dual QP solver.</div>
+                            <div class="ref-card-footer">
+                                <a href="https://doi.org/10.1002/nav.3800040113" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+
+                        <!-- REF 05 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[05]</span>
+                                    <span class="ref-keyword">DYNAMIC TRAJECTORY PLANNING</span>
+                                </div>
+                                <span class="badge badge-res">RESEARCH BASIS</span>
+                            </div>
+                            <div class="ref-citation">
+                                Werling et al., <strong>“Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame”</strong>, IEEE ICRA 2010.
+                            </div>
+                            <div class="ref-relevance">Research basis for trajectory generation in dynamic road environments.</div>
+                            <div class="ref-card-footer">
+                                <a href="https://doi.org/10.1109/ROBOT.2010.5509799" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+
+                        <!-- REF 06 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[06]</span>
+                                    <span class="ref-keyword">SAFETY-CRITICAL CONTROL</span>
+                                </div>
+                                <span class="badge badge-res">RESEARCH BASIS</span>
+                            </div>
+                            <div class="ref-citation">
+                                Ames et al., <strong>“Control Barrier Functions: Theory and Applications”</strong>, ECC 2019.
+                            </div>
+                            <div class="ref-relevance">Research basis for formal safety supervision concepts. <i>(SafetyFilter is kinematic)</i></div>
+                            <div class="ref-card-footer">
+                                <a href="https://doi.org/10.23919/ECC.2019.8796030" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+
+                        <!-- REF 07 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[07]</span>
+                                    <span class="ref-keyword">REALISTIC SCENARIO VALIDATION</span>
+                                </div>
+                                <span class="badge badge-pro">PROPOSED</span>
+                            </div>
+                            <div class="ref-citation">
+                                MathWorks, <strong>“Automated Driving Toolbox & RoadRunner Scenario Simulation”</strong>.
+                            </div>
+                            <div class="ref-relevance">Target platform for realistic scenario and sensor simulation.</div>
+                            <div class="ref-card-footer">
+                                <div class="ref-link-group">
+                                    <a href="https://www.mathworks.com/products/automated-driving.html" target="_blank" class="ref-btn">SOURCE ↗</a>
+                                    <a href="https://www.mathworks.com/products/roadrunner.html" target="_blank" class="ref-btn ref-btn-secondary">RoadRunner ↗</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- REF 08 -->
+                        <div class="ref-card">
+                            <div class="ref-card-header">
+                                <div class="ref-num-tag">
+                                    <span class="ref-num">[08]</span>
+                                    <span class="ref-keyword">ROAD NETWORK STANDARD</span>
+                                </div>
+                                <span class="badge badge-pro">PROPOSED</span>
+                            </div>
+                            <div class="ref-citation">
+                                ASAM e.V., <strong>“ASAM OpenDRIVE: Open Dynamic Road Information for Simulation”</strong>.
+                            </div>
+                            <div class="ref-relevance">Standardized representation for static road-network geometry.</div>
+                            <div class="ref-card-footer">
+                                <a href="https://www.asam.net/standards/detail/opendrive/" target="_blank" class="ref-btn">SOURCE ↗</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM STRIP: RESEARCH → PROJECT MAPPING (~18% height) -->
+        <div class="bottom-strip-panel">
+            <div class="strip-header">
+                <div class="strip-title">RESEARCH → PROJECT MAPPING</div>
+                <div class="strip-subtitle">CLEAR LINEAGE FROM SCIENTIFIC LITERATURE TO PROJECT IMPLEMENTATION & FUTURE VALIDATION</div>
+            </div>
+
+            <div class="strip-sequence">
+                <!-- 1. IDD -->
+                <div class="strip-node node-res">
+                    <div class="node-top">
+                        <span class="node-source-name">IDD (2019)</span>
+                        <span class="badge badge-res">RES</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">Indian-road scenario basis</div>
+                </div>
+
+                <!-- 2. Polack -->
+                <div class="strip-node node-cur">
+                    <div class="node-top">
+                        <span class="node-source-name">Polack (2017)</span>
+                        <span class="badge badge-cur">CUR</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">vehicle/BicycleModel.m</div>
+                </div>
+
+                <!-- 3. Borrelli -->
+                <div class="strip-node node-res">
+                    <div class="node-top">
+                        <span class="node-source-name">Borrelli (2017)</span>
+                        <span class="badge badge-res">RES</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">planning/QPMPCPlanner.m</div>
+                </div>
+
+                <!-- 4. Hildreth -->
+                <div class="strip-node node-cur">
+                    <div class="node-top">
+                        <span class="node-source-name">Hildreth (1957)</span>
+                        <span class="badge badge-cur">CUR</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">Dual QP solver in QPMPCPlanner</div>
+                </div>
+
+                <!-- 5. Werling -->
+                <div class="strip-node node-res">
+                    <div class="node-top">
+                        <span class="node-source-name">Werling (2010)</span>
+                        <span class="badge badge-res">RES</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">Trajectory-planning research basis</div>
+                </div>
+
+                <!-- 6. Ames -->
+                <div class="strip-node node-res">
+                    <div class="node-top">
+                        <span class="node-source-name">Ames (2019)</span>
+                        <span class="badge badge-res">RES</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">Safety-supervision research basis</div>
+                </div>
+
+                <!-- 7. MathWorks / ASAM -->
+                <div class="strip-node node-pro">
+                    <div class="node-top">
+                        <span class="node-source-name">MathWorks / ASAM</span>
+                        <span class="badge badge-pro">PRO</span>
+                    </div>
+                    <div class="node-arrow">▼</div>
+                    <div class="node-target">Future RoadRunner validation</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- DEVELOPER AUDIT PANEL (OUTSIDE 1920x813 CANVAS) -->
+    <div class="developer-metadata">
+        <div class="dev-title">
+            <span>[DEVELOPER EVIDENTIARY AUDIT] Reference Verification & Implementation Mapping</span>
+            <span>SIH26037 RESEARCH TRANSPARENCY MATRIX</span>
+        </div>
+        <table class="dev-table">
+            <thead>
+                <tr>
+                    <th>Scientific Topic</th>
+                    <th>Status Badge</th>
+                    <th>Verified Citation</th>
+                    <th>Project Implementation / Scope</th>
+                    <th>Evidentiary Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Indian Road Complexity</td>
+                    <td><span class="badge badge-res">RESEARCH BASIS</span></td>
+                    <td>Varma et al., IEEE/CVF WACV 2019</td>
+                    <td>Motivates unstructured road scenario definitions</td>
+                    <td>Domain baseline; not used for neural network training</td>
+                </tr>
+                <tr>
+                    <td>Kinematic Vehicle Model</td>
+                    <td><span class="badge badge-cur">CURRENT</span></td>
+                    <td>Polack et al., IEEE IV 2017</td>
+                    <td><code>vehicle/BicycleModel.m</code></td>
+                    <td>5-state [x,y,θ,v,δ]ᵀ model with steering lag & jerk limits</td>
+                </tr>
+                <tr>
+                    <td>Model Predictive Control</td>
+                    <td><span class="badge badge-cur">CURRENT</span></td>
+                    <td>Borrelli et al., Cambridge Univ Press 2017</td>
+                    <td><code>planning/QPMPCPlanner.m</code></td>
+                    <td>Linearized condensed MPC (Np=20, Ts=0.1s)</td>
+                </tr>
+                <tr>
+                    <td>Quadratic Programming</td>
+                    <td><span class="badge badge-cur">CURRENT</span></td>
+                    <td>Hildreth, Naval Res Logist Q 1957</td>
+                    <td><code>QPMPCPlanner.m (hildreth_dual_qp)</code></td>
+                    <td>Dual coordinate-descent solver with 4 KKT residual audits</td>
+                </tr>
+                <tr>
+                    <td>Free-Space Representation</td>
+                    <td><span class="badge badge-cur">CURRENT</span></td>
+                    <td>Ziegler & Stiller (2009) / McNaughton (2011)</td>
+                    <td><code>planning/FreeSpaceBoundProvider.m</code></td>
+                    <td>Dynamic lateral bounds y_min(x), y_max(x) replace lane centerline</td>
+                </tr>
+                <tr>
+                    <td>Multi-Topology Planning</td>
+                    <td><span class="badge badge-cur">CURRENT</span></td>
+                    <td>Werling et al., IEEE ICRA 2010 (Research Basis)</td>
+                    <td><code>planning/CACRCPlanner.m</code></td>
+                    <td>Evaluates J_left vs J_right topologies with soft-QP fallback</td>
+                </tr>
+                <tr>
+                    <td>Safety Supervision</td>
+                    <td><span class="badge badge-res">RESEARCH BASIS</span></td>
+                    <td>Ames et al., ECC 2019</td>
+                    <td><code>planning/SafetyFilter.m</code></td>
+                    <td>Research basis; code enforces 2D OBB kinematic override</td>
+                </tr>
+                <tr>
+                    <td>Scenario Simulation</td>
+                    <td><span class="badge badge-pro">PROPOSED</span></td>
+                    <td>MathWorks Automated Driving & ASAM OpenDRIVE</td>
+                    <td>Target validation roadmap</td>
+                    <td>Stage 2 extension for realistic 3D scene & OpenDRIVE import</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

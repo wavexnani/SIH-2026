@@ -1,0 +1,10 @@
+Scenario,Configuration,Completed,TotalSteps,MaxX_m,MatchedDist_m,MatchedRMSE_cm,FullRMSE_cm,SteeringReversals,SteeringEffort_rad2,RefPeakLatAccel_mps2,ActualPeakLatAccel_mps2,MeanLatency_ms,PlannerLatency_ms,ControllerLatency_ms,SafetyFilterLatency_ms,OverheadLatency_ms,WallClock_s,SafetyInterventions
+bottleneck,Config A (Baseline),YES,148,75.21,75.20,5.61,5.59,2,0.00382,0.000,0.526,7.14,4.77,1.49,0.69,0.43,1.27,0
+bottleneck,Config B (+Velocity),YES,148,75.21,75.20,5.61,5.59,2,0.00382,0.000,0.526,8.10,5.24,2.00,0.70,0.33,1.27,0
+bottleneck,Config C (+Vel +Steer),YES,148,75.20,75.20,5.66,5.66,11,0.00875,0.000,0.544,6.86,4.24,1.92,0.56,0.28,1.07,0
+cattle,Config A (Baseline),NO,52,30.66,30.66,49.37,49.37,6,0.05223,0.000,0.761,13.93,9.96,2.75,1.06,0.64,0.81,2
+cattle,Config B (+Velocity),NO,52,30.66,30.66,49.37,49.37,6,0.05223,0.000,0.761,8.60,6.01,1.86,0.60,0.31,0.46,2
+cattle,Config C (+Vel +Steer),NO,52,30.68,30.66,43.96,49.06,3,0.02998,0.000,0.815,8.96,5.80,2.36,0.64,0.40,0.49,2
+chicane,Config A (Baseline),NO,102,65.27,65.27,289.32,289.32,6,0.79118,5.287,5.186,24.91,23.08,0.45,1.24,0.37,2.59,41
+chicane,Config B (+Velocity),YES,137,100.19,65.27,53.70,147.86,10,0.72861,2.500,4.629,10.69,8.63,0.67,1.26,0.36,1.52,27
+chicane,Config C (+Vel +Steer),NO,105,65.51,65.27,280.17,331.75,3,0.10607,2.500,7.030,21.57,19.85,0.62,0.98,0.30,2.29,27

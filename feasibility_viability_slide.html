@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH26037 - Feasibility & Viability Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base Reset & Variables */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-canvas: #ffffff;
+            --bg-page: #0f172a;
+            --navy-primary: #0f172a;
+            --navy-secondary: #1e293b;
+            --blue-accent: #2563eb;
+            --blue-light: #eff6ff;
+            --blue-border: #bfdbfe;
+            --emerald-accent: #059669;
+            --emerald-light: #ecfdf5;
+            --emerald-border: #a7f3d0;
+            --indigo-accent: #4f46e5;
+            --indigo-light: #eef2ff;
+            --indigo-border: #c7d2fe;
+            --slate-border: #cbd5e1;
+            --slate-bg: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-light: #64748b;
+            --amber-accent: #d97706;
+            --amber-light: #fffbeb;
+            --amber-border: #fde68a;
+            --rose-accent: #dc2626;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 30px 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 1920x813 Exact Canvas Container */
+        .slide-canvas {
+            width: 1920px;
+            height: 813px;
+            min-width: 1920px;
+            min-height: 813px;
+            max-width: 1920px;
+            max-height: 813px;
+            background-color: var(--bg-canvas);
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 28px;
+            border: 1px solid var(--slate-border);
+        }
+
+        /* Slide Header */
+        .slide-header {
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .project-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--blue-accent);
+            margin-bottom: 2px;
+        }
+
+        .slide-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--navy-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-subtitle {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-left: 8px;
+            padding-left: 12px;
+            border-left: 2px solid #cbd5e1;
+        }
+
+        .header-right-badge {
+            background-color: var(--navy-primary);
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+        }
+
+        /* Top Row: 3 Evidence Cards */
+        .cards-row {
+            height: 125px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 12px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid var(--slate-border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .card-safety::before { background-color: var(--blue-accent); }
+        .card-perf::before { background-color: var(--emerald-accent); }
+        .card-robust::before { background-color: var(--indigo-accent); }
+
+        .card-safety { background-color: var(--blue-light); border-color: var(--blue-border); }
+        .card-perf { background-color: var(--emerald-light); border-color: var(--emerald-border); }
+        .card-robust { background-color: var(--indigo-light); border-color: var(--indigo-border); }
+
+        .card-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .card-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1.0;
+            letter-spacing: -0.03em;
+        }
+
+        .card-safety .card-number { color: #1e40af; }
+        .card-perf .card-number { color: #047857; }
+        .card-robust .card-number { color: #3730a3; }
+
+        .card-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .card-safety .card-badge { background: #dbeafe; color: #1e40af; }
+        .card-perf .card-badge { background: #d1fae5; color: #047857; }
+        .card-robust .card-badge { background: #e0e7ff; color: #3730a3; }
+
+        .card-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+            color: var(--navy-primary);
+        }
+
+        .card-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+            line-height: 1.35;
+        }
+
+        /* Middle Row: 2 Visual Panels */
+        .visuals-row {
+            height: 425px;
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .panel {
+            background: #ffffff;
+            border: 1px solid var(--slate-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--navy-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-tag {
+            font-size: 10px;
+            font-weight: 600;
+            background-color: #f1f5f9;
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .panel-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #f1f5f9;
+            padding: 4px;
+        }
+
+        .panel-img {
+            max-width: 100%;
+            max-height: 275px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .panel-annotation {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: var(--slate-bg);
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .anno-stat-box {
+            background: #ffffff;
+            border: 1px solid var(--slate-border);
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-align: center;
+            min-width: 130px;
+        }
+
+        .anno-stat-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--blue-accent);
+        }
+
+        .anno-stat-lbl {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+        }
+
+        .anno-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.35;
+            flex: 1;
+        }
+
+        .anno-text strong {
+            color: var(--navy-primary);
+        }
+
+        /* Safe Failure Alert Variant */
+        .anno-alert {
+            background: var(--amber-light);
+            border-color: var(--amber-border);
+        }
+
+        .anno-alert-text {
+            color: #78350f;
+            font-size: 11px;
+            line-height: 1.35;
+            flex: 1;
+        }
+
+        .anno-alert-text strong {
+            color: #92400e;
+        }
+
+        /* Bottom Row: Validation Roadmap Strip */
+        .roadmap-strip {
+            height: 130px;
+            background: #f8fafc;
+            border: 1px solid var(--slate-border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .roadmap-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .roadmap-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--navy-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .roadmap-flow {
+            display: grid;
+            grid-template-columns: 1fr 24px 1fr 24px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .roadmap-stage {
+            background: #ffffff;
+            border: 1px solid var(--slate-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            height: 78px;
+            justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            position: relative;
+        }
+
+        .stage-active {
+            border-color: var(--blue-accent);
+            background: #f0f7ff;
+        }
+
+        .stage-badge {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 2px;
+        }
+
+        .stage-active .stage-badge { color: var(--blue-accent); }
+        .stage-next .stage-badge { color: var(--amber-accent); }
+        .stage-target .stage-badge { color: var(--emerald-accent); }
+
+        .stage-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--navy-primary);
+        }
+
+        .stage-desc {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.25;
+        }
+
+        .roadmap-arrow {
+            text-align: center;
+            font-size: 16px;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        /* Developer Metadata Section (OUTSIDE CANVAS) */
+        .developer-metadata {
+            width: 1920px;
+            margin-top: 24px;
+            background: #1e293b;
+            color: #cbd5e1;
+            border-radius: 8px;
+            padding: 20px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            border: 1px solid #334155;
+        }
+
+        .dev-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dev-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .dev-table th, .dev-table td {
+            text-align: left;
+            padding: 6px 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .dev-table th {
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .dev-table td {
+            color: #e2e8f0;
+        }
+
+        .dev-tag {
+            color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1920x813 PPT Visual Canvas -->
+    <div class="slide-canvas">
+        
+        <!-- Header -->
+        <header class="slide-header">
+            <div class="header-left">
+                <div class="project-tag">SIH26037 • Adaptive Path Planning & Collision Avoidance</div>
+                <div class="slide-title">
+                    FEASIBILITY & VIABILITY
+                    <span class="title-subtitle">Closed-Loop Prototype Performance Evidence & Validation Pathway</span>
+                </div>
+            </div>
+            <div class="header-right-badge">
+                <div class="status-dot"></div>
+                MATLAB MIL PROTOTYPE VERIFIED
+            </div>
+        </header>
+
+        <!-- Top Row: 3 Evidence Cards -->
+        <div class="cards-row">
+            <!-- Card 1: Safety -->
+            <div class="card card-safety">
+                <div class="card-top">
+                    <div class="card-number">300 / 300</div>
+                    <div class="card-badge">100.0% Benchmark</div>
+                </div>
+                <div class="card-label">Collision-Free Benchmark Trials</div>
+                <div class="card-subtext">Verified across 6 unstructured Indian road scenarios in closed-loop Monte Carlo testing.</div>
+            </div>
+
+            <!-- Card 2: Computational Feasibility -->
+            <div class="card card-perf">
+                <div class="card-top">
+                    <div class="card-number">4.22 ms</div>
+                    <div class="card-badge">P95: 8.27 ms</div>
+                </div>
+                <div class="card-label">Mean Closed-Loop Computation</div>
+                <div class="card-subtext">Hildreth Dual QP mean solve time: 1.91 ms (Measured in MATLAB MIL simulation execution).</div>
+            </div>
+
+            <!-- Card 3: Noise Robustness -->
+            <div class="card card-robust">
+                <div class="card-top">
+                    <div class="card-number">0% COLLISION</div>
+                    <div class="card-badge">σv = 0.10 m/s</div>
+                </div>
+                <div class="card-label">Under Tested Perception Velocity Noise</div>
+                <div class="card-subtext">Proposed uncertainty corridor: 0.0% collisions (0.00 crossovers) vs. Baseline 80.0% collisions (0.05 crossovers).</div>
+            </div>
+        </div>
+
+        <!-- Middle Row: 2 Visual Panels -->
+        <div class="visuals-row">
+            
+            <!-- Panel 1: Main Visual (Counterfactual) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>Controlled Baseline vs. Uncertainty-Aware Comparison</span>
+                    </div>
+                    <div class="panel-tag">Tier 3C Counterfactual • Seed 3000</div>
+                </div>
+                <div class="panel-body">
+                    <img src="artifacts/tier3c_baseline_vs_proposed_counterfactual_4panel.png" alt="Counterfactual Comparison 4-Panel Plot" class="panel-img">
+                </div>
+                <div class="panel-annotation">
+                    <div class="anno-stat-box">
+                        <div class="anno-stat-val">0.05 ➔ 0.00</div>
+                        <div class="anno-stat-lbl">Pre-QP Crossovers</div>
+                    </div>
+                    <div class="anno-text">
+                        <strong>Engineering Result:</strong> Under identical simulated noise (&sigma;v = 0.10 m/s), uncertainty-aware envelope construction (2.0&middot;&sigma;v&middot;&tau;) eliminates corridor crossovers, improving planner feasibility and reducing collisions from <strong>80.0% to 0.0%</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: Secondary Visual (Safe Failure / Bottleneck) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>Safe Standstill in Non-Traversable Bottlenecks</span>
+                    </div>
+                    <div class="panel-tag">Scenario 03 Audit</div>
+                </div>
+                <div class="panel-body">
+                    <img src="artifacts/s03_gap_width_vs_clearance.png" alt="Bottleneck Gap Width vs Clearance Plot" class="panel-img">
+                </div>
+                <div class="panel-annotation anno-alert">
+                    <div class="anno-stat-box" style="border-color: var(--amber-border);">
+                        <div class="anno-stat-val" style="color: var(--amber-accent);">Cmin &ge; +0.05 m</div>
+                        <div class="anno-stat-lbl" style="color: #92400e;">Safe Standstill</div>
+                    </div>
+                    <div class="anno-alert-text">
+                        <strong>Safe Failure Principle:</strong> For gap widths Wgap &lt; 1.60 m (below vehicle width + margin), the planner refuses to force a path through an infeasible passage and brings the ego vehicle to a safe standstill.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Row: Validation Roadmap Strip -->
+        <div class="roadmap-strip">
+            <div class="roadmap-header">
+                <div class="roadmap-title">Progressive Validation & Deployment Pathway</div>
+                <div style="font-size: 10px; font-weight: 600; color: var(--text-light);">DISTINGUISHING CURRENT PROTOTYPE FROM FUTURE VALIDATION ROADMAP</div>
+            </div>
+            
+            <div class="roadmap-flow">
+                <!-- Stage 1 -->
+                <div class="roadmap-stage stage-active">
+                    <div class="stage-badge">STAGE 1 — CURRENT DEMONSTRATED</div>
+                    <div class="stage-name">MATLAB / Simulink MIL Prototype</div>
+                    <div class="stage-desc">Closed-loop verified • Noise & actuator disturbance models • Hildreth QP-MPC + Safety Filter</div>
+                </div>
+
+                <div class="roadmap-arrow">➔</div>
+
+                <!-- Stage 2 -->
+                <div class="roadmap-stage stage-next">
+                    <div class="stage-badge">STAGE 2 — NEXT VALIDATION</div>
+                    <div class="stage-name">RoadRunner + Sensor Simulation</div>
+                    <div class="stage-desc">ASAM OpenDRIVE Indian road scenes • Synthetic Camera/LiDAR/Radar • Sensor fusion & tracking</div>
+                </div>
+
+                <div class="roadmap-arrow">➔</div>
+
+                <!-- Stage 3 -->
+                <div class="roadmap-stage stage-target">
+                    <div class="stage-badge">STAGE 3 — TARGET DEPLOYMENT</div>
+                    <div class="stage-name">SIL ➔ HIL ➔ Controlled Field Validation</div>
+                    <div class="stage-desc">C++17 code export • Embedded automotive ARM / Orin compute • Real actuator & sensor interfaces</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Developer / Forensic Audit Metadata (OUTSIDE 1920x813 CANVAS) -->
+    <div class="developer-metadata">
+        <div class="dev-title">
+            <span>[DEVELOPER AUDIT] Scientific Verification & Source Evidence Map</span>
+            <span>SIH26037 FORENSIC COMPLIANCE</span>
+        </div>
+        <table class="dev-table">
+            <thead>
+                <tr>
+                    <th>Claimed Metric</th>
+                    <th>Exact Value</th>
+                    <th>Source Artifact / Code Base</th>
+                    <th>Scope & Conditions</th>
+                    <th>Verification Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Monte Carlo Safety</td>
+                    <td><span class="dev-tag">300 / 300 (100.0%)</span></td>
+                    <td><code>tests/dynamic_robustness/results/dynamic_benchmark_audit_v3.md</code></td>
+                    <td>6 unstructured road scenarios, 50 trials each</td>
+                    <td>VERIFIED (Reproducible)</td>
+                </tr>
+                <tr>
+                    <td>Closed-Loop Computation</td>
+                    <td><span class="dev-tag">4.22 ms (P95: 8.27 ms)</span></td>
+                    <td><code>scratch/measure_full_latency_breakdown.m</code></td>
+                    <td>150 timesteps, MATLAB closed-loop MIL execution</td>
+                    <td>VERIFIED (Profiled)</td>
+                </tr>
+                <tr>
+                    <td>QP Solver Execution</td>
+                    <td><span class="dev-tag">1.91 ms mean</span></td>
+                    <td><code>tests/test_qp_solver.m</code></td>
+                    <td>Hildreth Dual QP, KKT residual &le; 5.6e-17</td>
+                    <td>VERIFIED (5/5 Unit Tests Passed)</td>
+                </tr>
+                <tr>
+                    <td>Perception Noise Robustness</td>
+                    <td><span class="dev-tag">0.0% Collisions (0.00 Crossovers)</span></td>
+                    <td><code>tests/dynamic_robustness/tier3_realism/results/tier3c_technical_report.md</code></td>
+                    <td>&sigma;v = 0.10 m/s, Tier 3C counterfactual vs baseline (80% coll)</td>
+                    <td>VERIFIED (10 Seeds/Cell)</td>
+                </tr>
+                <tr>
+                    <td>Safe Standstill Bottleneck</td>
+                    <td><span class="dev-tag">Cmin &ge; +0.05 m</span></td>
+                    <td><code>tests/dynamic_robustness/results/edge_of_failure_sweep_v2.md</code></td>
+                    <td>Scenario 03, Wgap &lt; 1.60 m non-traversable passage</td>
+                    <td>VERIFIED (Sweep 0.4-1.8m)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

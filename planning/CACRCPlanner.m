@@ -29,6 +29,7 @@ classdef CACRCPlanner < handle
         qp_base_planner QPMPCPlanner        % Underlying Hildreth QP engine
         predictor       PredictorModule     % Obstacle predictor
         bound_provider                      % BoundProvider object (CorridorBoundProvider or FreeSpaceBoundProvider)
+        use_curvature_velocity logical = false % Flag to enable curvature-aware speed profile (default: false for baseline preservation)
     end
     
     methods
@@ -92,7 +93,11 @@ classdef CACRCPlanner < handle
             for k = 1:obj.N_p
                 idx = min(nearest_idx + k - 1, num_ref);
                 ref_pt = reference_path(idx, :);
-                x_ref_traj(k, :) = [ref_pt(1), ref_pt(2), ref_pt(3), target_speed];
+                v_k = target_speed;
+                if obj.use_curvature_velocity && size(reference_path, 2) >= 5 && ref_pt(5) > 0
+                    v_k = min(target_speed, ref_pt(5));
+                end
+                x_ref_traj(k, :) = [ref_pt(1), ref_pt(2), ref_pt(3), v_k];
             end
             X_ref = reshape(x_ref_traj', [], 1);
             

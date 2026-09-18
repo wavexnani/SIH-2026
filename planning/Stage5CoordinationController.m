@@ -17,6 +17,10 @@ classdef Stage5CoordinationController < handle
         overtake_clear_count% Step counter for persistent overtake completion confirmation
         in_overtake_maneuver% Boolean latch for active overtake maneuver
         target_overtake_id  % ID of target agent currently being overtaken (-1 if none)
+        use_curvature_velocity logical = false % Proposal upgrade: curvature-aware speed profiling
+        use_steering_filter    logical = false % Proposal upgrade: actuator-aware steering stabilization
+        curvature_planner                      % CurvatureVelocityPlanner instance
+        steering_filter                        % DelayAwareSteeringFilter instance
     end
     
     methods
@@ -34,6 +38,10 @@ classdef Stage5CoordinationController < handle
             obj.overtake_clear_count = 0;
             obj.in_overtake_maneuver = false;
             obj.target_overtake_id = -1;
+            obj.use_curvature_velocity = false;
+            obj.use_steering_filter = false;
+            obj.curvature_planner = CurvatureVelocityPlanner(cfg);
+            obj.steering_filter = DelayAwareSteeringFilter(cfg);
         end
         
         function reset(obj)
@@ -48,6 +56,9 @@ classdef Stage5CoordinationController < handle
             obj.overtake_clear_count = 0;
             obj.in_overtake_maneuver = false;
             obj.target_overtake_id = -1;
+            if ~isempty(obj.steering_filter)
+                obj.steering_filter.reset();
+            end
         end
 
         function setOvertakeEnabled(obj, enabled)
@@ -62,6 +73,7 @@ classdef Stage5CoordinationController < handle
         
         function [u_cmd, pred_states, status, info] = step(obj, world, ref_path, v_des_nominal)
             if nargin < 4, v_des_nominal = obj.config.ego_v_init; end
+            t_step_start = tic;
             
             % 1. Perception & Relative State Detection
             detections = MultiVehicleDetector.detect(world, world.ego);
@@ -196,7 +208,8 @@ classdef Stage5CoordinationController < handle
             is_unstructured = ~isempty(bp) && ismethod(bp.map, 'extractLocalBounds') && ...
                (strcmpi(bp.map.map_type, 'unstructured') || strcmpi(bp.map.map_type, 'indian_unstructured'));
 
-            if is_unstructured
+            ref_path_is_default_flat = all(abs(ref_path(:, 2) - ref_path(1, 2)) < 1e-4) && abs(ref_path(1, 2) - 3.0) < 0.05;
+            if is_unstructured && ref_path_is_default_flat
                 % Unstructured Road: derive reference trajectory directly from FreeSpaceMap
                 ref_path_coord = ref_path;
                 x_pts = ref_path_coord(:, 1);
@@ -280,12 +293,43 @@ classdef Stage5CoordinationController < handle
                 target_v_exec = min(target_v_exec, 4.50);
             end
             
-            [u_mpc, pred_states, status, cacrc_info] = obj.cacrc_planner.plan(world_coord, ref_path_coord, target_v_exec);
+            % Curvature-aware velocity profiling (if enabled)
+            if obj.use_curvature_velocity && ~isempty(obj.curvature_planner)
+                obj.cacrc_planner.use_curvature_velocity = true;
+                ref_path_coord = obj.curvature_planner.planVelocityProfile(ref_path_coord, target_v_exec);
+            else
+                obj.cacrc_planner.use_curvature_velocity = false;
+            end
             
-            % 6. Apply Layer 2 Safety Filter Authority
-            % Planner and filter evaluate the same Stage 5 envelopes.
+            t_plan_start = tic;
+            [u_mpc, pred_states, status, cacrc_info] = obj.cacrc_planner.plan(world_coord, ref_path_coord, target_v_exec);
+            t_plan_ms = toc(t_plan_start) * 1000;
+            
+            % 6. Delay-Aware Steering Filter (if enabled)
+            % Stabilizes raw MPC command prior to Layer 2 safety verification
+            t_steer_start = tic;
+            steer_info = struct();
+            if obj.use_steering_filter && ~isempty(obj.steering_filter)
+                dt_step = obj.config.dt;
+                corr_w = inf;
+                if is_unstructured && ~isempty(bp) && ismethod(bp.map, 'getRoadBoundsAt')
+                    [y_lo_ego, y_hi_ego] = bp.map.getRoadBoundsAt(world.ego.x);
+                    corr_w = y_hi_ego - y_lo_ego;
+                end
+                [steer_filtered, s_info] = obj.steering_filter.step(u_mpc(1), world.ego.delta, dt_step, false, corr_w);
+                u_mpc(1) = steer_filtered;
+                steer_info = s_info;
+            end
+            t_steer_ms = toc(t_steer_start) * 1000;
+            
+            % 7. Apply Layer 2 Safety Filter Authority
+            % Evaluates the filtered candidate command; provides final uncompromised safety authority
+            t_safety_start = tic;
             [u_cmd, filter_active, filter_reason] = obj.safety_filter.filter(u_mpc, status, world_coord, pred_states, obj.cacrc_planner.bound_provider);
-
+            t_safety_ms = toc(t_safety_start) * 1000;
+            
+            t_step_total_ms = toc(t_step_start) * 1000;
+            t_ctrl_logic_ms = max(0, t_step_total_ms - t_plan_ms - t_safety_ms);
             
             % Assemble Stage 5 Diagnostics
             info = cacrc_info;
@@ -297,6 +341,15 @@ classdef Stage5CoordinationController < handle
             info.n_detected_vehicles = length(detections);
             info.filter_active = filter_active;
             info.filter_reason = filter_reason;
+            info.steer_info = steer_info;
+            
+            % Sub-system Latency Breakdown (ms)
+            info.timing = struct();
+            info.timing.planner_ms = t_plan_ms;
+            info.timing.controller_ms = t_ctrl_logic_ms;
+            info.timing.steering_filter_ms = t_steer_ms;
+            info.timing.safety_filter_ms = t_safety_ms;
+            info.timing.total_ctrl_step_ms = t_step_total_ms;
             
             % --- Pipeline Instrumentation (logging-only, no algorithm change) ---
             info.detections = detections;

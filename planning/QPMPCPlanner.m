@@ -40,6 +40,7 @@ classdef QPMPCPlanner < handle
         last_total_time double = 0.0         % Total planner execution time (ms)
         last_residuals  struct = struct('r_primal', 0, 'r_dual', 0, 'r_comp', 0, 'r_stat', 0)
         last_iterations int32 = 0            % Iteration count
+        use_curvature_velocity logical = false % Flag to enable curvature-aware speed profile (default: false for baseline preservation)
     end
     
     methods
@@ -84,7 +85,11 @@ classdef QPMPCPlanner < handle
             for k = 1:obj.N_p
                 idx = min(nearest_idx + k - 1, num_ref);
                 ref_pt = reference_path(idx, :);
-                x_ref_traj(k, :) = [ref_pt(1), ref_pt(2), ref_pt(3), target_speed];
+                v_k = target_speed;
+                if obj.use_curvature_velocity && size(reference_path, 2) >= 5 && ref_pt(5) > 0
+                    v_k = min(target_speed, ref_pt(5));
+                end
+                x_ref_traj(k, :) = [ref_pt(1), ref_pt(2), ref_pt(3), v_k];
             end
             
             % Stacked reference trajectory vector X_ref \in R^{4 Np}
