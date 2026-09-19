@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIH 26037 — Adaptive Path Planning & Collision Avoidance</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#071016;color:#eaf4f7;font-family:Inter,Arial,sans-serif;overflow:hidden;user-select:text;-webkit-user-select:text}
+::selection{background:rgba(98,215,210,0.4);color:#ffffff}
+body{font-size:14px}
+.deck{width:100vw;height:100vh}
+.slide{
+  display:none;
+  width:100vw;height:100vh;
+  padding:34px 42px;
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 90% 0%,rgba(31,107,125,.18),transparent 30%),
+    linear-gradient(135deg,#071016,#09161c 55%,#071016);
+}
+.slide.active{display:block}
+.top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  border-bottom:1px solid #24404a;padding-bottom:13px;margin-bottom:18px
+}
+.kicker{font-size:11px;letter-spacing:2px;color:#62d7d2;font-weight:800}
+h1{font-size:36px;line-height:1.05;margin:4px 0 7px;letter-spacing:-1px}
+h2{font-size:27px;margin:0 0 5px}
+h3{font-size:15px;margin:0 0 6px;color:#75e0db}
+.sub{color:#91a9b2;max-width:850px;line-height:1.45}
+.page{color:#6c858e;font-size:12px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.card{
+  background:#0b1b22;
+  border:1px solid #23414b;
+  border-radius:11px;
+  padding:13px;
+}
+.card strong{color:#fff}
+.muted{color:#829ba5}
+.small{font-size:11px;line-height:1.45}
+.tiny{font-size:9px;color:#78919a}
+.accent{color:#66ddd8}
+.warn{color:#f0bd69}
+.bad{color:#ef7c78}
+.good{color:#77d99c}
+.kpi{
+  border:1px solid #28525b;
+  background:linear-gradient(145deg,#0c2028,#09171d);
+  border-radius:12px;padding:14px
+}
+.kpi .n{font-size:28px;font-weight:850;color:#75e0db}
+.kpi .l{font-size:10px;letter-spacing:1.2px;color:#829ca5;margin-top:3px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{border-bottom:1px solid #203841;padding:7px 6px;text-align:left}
+th{color:#74dcd7;font-size:10px;letter-spacing:.6px}
+td{color:#c6d6db}
+svg{width:100%;height:100%}
+.figure{
+  background:#08151b;border:1px solid #23414a;border-radius:12px;
+  padding:9px
+}
+.eq{
+  font-family:Georgia,serif;
+  color:#dcecef;
+  background:#071217;
+  border-left:3px solid #61d7d1;
+  padding:10px 13px;margin:7px 0;
+  font-size:16px
+}
+.pill{
+  display:inline-block;border:1px solid #315761;border-radius:99px;
+  padding:4px 8px;margin:2px;color:#91b2bb;font-size:10px
+}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.node{
+  padding:8px 10px;background:#0d232b;border:1px solid #31606a;
+  border-radius:8px;text-align:center;font-size:10px;min-width:88px
+}
+.arrow{color:#5ccfc9;font-size:16px}
+.footer{
+ position:absolute;bottom:13px;left:42px;right:42px;
+ color:#5d747d;font-size:9px;display:flex;justify-content:space-between
+}
+.callout{
+ border:1px solid #5b5134;background:#1b1710;border-radius:9px;padding:10px
+}
+ul{margin:6px 0;padding-left:18px}
+li{margin:4px 0;line-height:1.35}
+svg text{font-family:Arial,sans-serif}
+</style>
+</head>
+
+<body>
+<div class="deck">
+
+<!-- ========================================================= -->
+<!-- SLIDE 1 -->
+<!-- ========================================================= -->
+<section class="slide active">
+<div class="top">
+ <div>
+  <div class="kicker">SMART INDIA HACKATHON 2026 · PS 26037</div>
+  <h1>Adaptive Path Planning & Collision Avoidance<br>for Unstructured Indian Roads</h1>
+  <div class="sub">
+   Perception-derived free-space navigation + risk-aware behavior selection +
+   constrained predictive control for mixed, lane-free traffic.
+  </div>
+ </div>
+ <div class="page">01 / 06</div>
+</div>
+
+<div class="grid g4" style="margin-bottom:14px">
+ <div class="kpi"><div class="n">FREE SPACE</div><div class="l">LANE-INDEPENDENT NAVIGATION</div></div>
+ <div class="kpi"><div class="n">RISK</div><div class="l">PREDICTION + UNCERTAINTY</div></div>
+ <div class="kpi"><div class="n">MPC</div><div class="l">CONSTRAINED TRAJECTORY TRACKING</div></div>
+ <div class="kpi"><div class="n">VETO</div><div class="l">INDEPENDENT OBB SAFETY FILTER</div></div>
+</div>
+
+<div class="grid g2" style="height:55%">
+ <div class="card">
+  <h3>Why conventional lane-centric planning breaks</h3>
+  <div class="grid g2">
+   <div>
+    <div class="pill">No reliable lane markings</div>
+    <div class="pill">Mixed traffic</div>
+    <div class="pill">Pedestrians</div>
+    <div class="pill">Animals</div>
+    <div class="pill">Auto-rickshaws</div>
+    <div class="pill">Pushcarts</div>
+   </div>
+   <div>
+    <ul>
+     <li>Obstacle motion is not necessarily lane-following.</li>
+     <li>Free road width changes continuously.</li>
+     <li>Passing opportunities are topology-dependent.</li>
+     <li>Uncertainty must change the usable corridor.</li>
+     <li>Unsafe commands require an independent final veto.</li>
+    </ul>
+   </div>
+  </div>
+
+  <h3 style="margin-top:12px">System question decomposition</h3>
+  <div class="flow">
+   <div class="node">WHERE<br>can I drive?</div><div class="arrow">→</div>
+   <div class="node">WHAT<br>should I do?</div><div class="arrow">→</div>
+   <div class="node">HOW FAST<br>should I go?</div><div class="arrow">→</div>
+   <div class="node">HOW<br>do I track it?</div><div class="arrow">→</div>
+   <div class="node">IS IT<br>still safe?</div>
+  </div>
+ </div>
+
+ <div class="figure">
+  <svg viewBox="0 0 700 400">
+   <rect x="20" y="20" width="660" height="360" rx="12" fill="#081218" stroke="#274852"/>
+   <path d="M45 315 C180 290 260 315 360 275 C470 230 520 260 650 210"
+         fill="none" stroke="#35545d" stroke-width="70"/>
+   <path d="M45 315 C180 290 260 315 360 275 C470 230 520 260 650 210"
+         fill="none" stroke="#132b33" stroke-width="56"/>
+   <path d="M45 302 C180 277 260 302 360 262 C470 217 520 247 650 197"
+         fill="none" stroke="#5bd6d0" stroke-width="2" stroke-dasharray="8 6"/>
+   <path d="M45 328 C180 303 260 328 360 288 C470 243 520 273 650 223"
+         fill="none" stroke="#5bd6d0" stroke-width="2" stroke-dasharray="8 6"/>
+
+   <rect x="285" y="255" width="34" height="18" rx="4" fill="#efbd69"/>
+   <rect x="430" y="226" width="42" height="20" rx="4" fill="#db7774"/>
+   <circle cx="505" cy="246" r="8" fill="#e7c56b"/>
+   <circle cx="555" cy="228" r="7" fill="#e7c56b"/>
+
+   <path d="M292 246 Q355 205 418 208 Q490 210 590 178"
+         fill="none" stroke="#79e09b" stroke-width="5"/>
+   <polygon points="590,178 576,175 582,187" fill="#79e09b"/>
+
+   <text x="45" y="50" fill="#72ddd8" font-size="17" font-weight="700">
+    Lane-free free-space trajectory
+   </text>
+   <text x="45" y="75" fill="#819ba4" font-size="12">
+    Corridor bounds adapt to obstacles + uncertainty
+   </text>
+
+   <text x="285" y="300" fill="#efbd69" font-size="11">ego</text>
+   <text x="425" y="270" fill="#db7774" font-size="11">dynamic agent</text>
+   <text x="505" y="270" fill="#e7c56b" font-size="10">ped / animal</text>
+  </svg>
+ </div>
+</div>
+
+<div class="footer">
+ <span>Validation boundary: MATLAB MIL closed-loop simulation; RoadRunner integration structured but not claimed as executed.</span>
+ <span>PS26037</span>
+</div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- SLIDE 2 -->
+<!-- ========================================================= -->
+<section class="slide">
+<div class="top">
+ <div>
+  <div class="kicker">ARCHITECTURE</div>
+  <h2>Closed-loop architecture: perception → decision → planning → control → safety</h2>
+  <div class="sub">The planner does not assume a pre-existing lane centerline. It constructs a usable corridor from the observed environment.</div>
+ </div>
+ <div class="page">02 / 06</div>
+</div>
+
+<div class="card" style="margin-bottom:11px">
+ <div class="flow" style="justify-content:center">
+  <div class="node">Observation<br>Model</div><div class="arrow">→</div>
+  <div class="node">FreeSpace<br>Map</div><div class="arrow">→</div>
+  <div class="node">Tracked<br>Objects</div><div class="arrow">→</div>
+  <div class="node">Prediction</div><div class="arrow">→</div>
+  <div class="node">Uncertainty<br>Expansion</div><div class="arrow">→</div>
+  <div class="node">Risk /<br>Interaction</div><div class="arrow">→</div>
+  <div class="node">Coordination<br>Decision</div><div class="arrow">→</div>
+  <div class="node">CA-CRC<br>Planner</div><div class="arrow">→</div>
+  <div class="node">Curvature +<br>Velocity</div><div class="arrow">→</div>
+  <div class="node">LTV / QP<br>MPC</div><div class="arrow">→</div>
+  <div class="node">Delay-aware<br>filter</div><div class="arrow">→</div>
+  <div class="node">OBB/SAT<br>Safety Veto</div><div class="arrow">→</div>
+  <div class="node">Bicycle<br>Plant</div>
+ </div>
+</div>
+
+<div class="grid g2" style="height:67%">
+ <div class="card">
+  <h3>What each layer contributes</h3>
+  <table>
+   <tr><th>LAYER</th><th>FUNCTION</th><th>OUTPUT</th></tr>
+   <tr><td>ObservationModel</td><td>Noise / delay abstraction</td><td>tracked state</td></tr>
+   <tr><td>FreeSpaceMap</td><td>Lane-independent drivable region</td><td>road corridor</td></tr>
+   <tr><td>PredictorModule</td><td>Short-horizon motion extrapolation</td><td>x,y,v trajectory</td></tr>
+   <tr><td>UncertaintyPredictor</td><td>Horizon-growing uncertainty</td><td>expanded bounds</td></tr>
+   <tr><td>RiskPredictor</td><td>Conflict / clearance risk</td><td>risk score</td></tr>
+   <tr><td>InteractionClassifier</td><td>Traffic interaction state</td><td>intent class</td></tr>
+   <tr><td>Coordination Layer</td><td>Maintain / follow / yield / overtake</td><td>behavior mode</td></tr>
+   <tr><td>CA-CRC</td><td>Free-space trajectory generation</td><td>reference path</td></tr>
+   <tr><td>CurvatureVelocityPlanner</td><td>Geometry → safe speed demand</td><td>v reference</td></tr>
+   <tr><td>LTV/QP MPC</td><td>Constrained trajectory tracking</td><td>δ, a</td></tr>
+   <tr><td>SafetyFilter</td><td>Independent OBB collision / boundary check</td><td>veto / command</td></tr>
+  </table>
+ </div>
+
+ <div>
+  <div class="card" style="height:53%;margin-bottom:10px">
+   <h3>Lane-free bottleneck proof</h3>
+   <div class="figure" style="height:76%">
+    <svg viewBox="0 0 600 270">
+     <rect x="20" y="30" width="560" height="205" fill="#0a181e" stroke="#34535c"/>
+     <rect x="260" y="30" width="70" height="205" fill="#15262d"/>
+     <rect x="260" y="30" width="70" height="55" fill="#0d1113"/>
+     <rect x="260" y="180" width="70" height="55" fill="#0d1113"/>
+     <text x="272" y="62" fill="#ef7774" font-size="11">obstacle</text>
+     <text x="272" y="218" fill="#ef7774" font-size="11">obstacle</text>
+
+     <path d="M50 135 L245 135 L345 110 L550 110" stroke="#e7bd6a" stroke-width="5" fill="none"/>
+     <path d="M50 150 L245 150 L345 150 L550 150" stroke="#70df9b" stroke-width="5" fill="none"/>
+     <rect x="285" y="132" width="36" height="18" fill="#70df9b" rx="3"/>
+     <text x="35" y="118" fill="#e7bd6a" font-size="10">fixed lane/reference</text>
+     <text x="35" y="175" fill="#70df9b" font-size="10">free-space reference</text>
+     <text x="345" y="95" fill="#91a9b2" font-size="10">2.0 m physical gap</text>
+     <text x="346" y="167" fill="#70df9b" font-size="10">1.8 m ego width</text>
+    </svg>
+   </div>
+   <div class="small">
+    Proposed free-space path completed the 75.2 m bottleneck test with
+    <strong>0 collisions</strong> and approximately <strong>+0.10 m true OBB clearance</strong>
+    in the reported experiment.
+   </div>
+  </div>
+
+  <div class="callout">
+   <strong class="warn">Important implementation boundary:</strong>
+   raw camera/LiDAR/radar fusion is not claimed here. The current MIL stack consumes
+   tracked-object abstractions through ObservationModel; synthetic sensor integration is the next validation stage.
+  </div>
+ </div>
+</div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- SLIDE 3 -->
+<!-- ========================================================= -->
+<section class="slide">
+<div class="top">
+ <div>
+  <div class="kicker">CORE METHOD</div>
+  <h2>Uncertainty changes the corridor — not merely the cost function</h2>
+  <div class="sub">Dynamic obstacles are converted into time-indexed forbidden regions. Prediction uncertainty expands those regions before MPC sees the corridor.</div>
+ </div>
+ <div class="page">03 / 06</div>
+</div>
+
+<div class="grid g2">
+ <div class="card">
+  <h3>Dynamic uncertainty-expanded corridor</h3>
+  <div class="eq">δy<sub>unc</sub>(τ) = 2 σ<sub>v</sub> τ</div>
+  <div class="eq">y<sub>lower</sub> = ŷ + v̂<sub>y</sub>τ − r<sub>ag</sub> − δy<sub>unc</sub></div>
+  <div class="eq">y<sub>upper</sub> = ŷ + v̂<sub>y</sub>τ + r<sub>ag</sub> + δy<sub>unc</sub></div>
+
+  <h3 style="margin-top:14px">Why this matters</h3>
+  <ul>
+   <li>Prediction error grows with look-ahead time.</li>
+   <li>The usable free-space corridor therefore contracts as uncertainty grows.</li>
+   <li>The planner can reject geometrically possible but uncertainty-sensitive paths.</li>
+   <li>At a non-traversable bottleneck, the safe action is controlled standstill rather than forced passage.</li>
+  </ul>
+
+  <div class="callout">
+   <strong>Interpretation:</strong> 2σ corresponds to approximately 95.45% Gaussian coverage
+   under the assumed model. This is an engineering uncertainty margin, <strong>not a formal probabilistic guarantee</strong>.
+  </div>
+ </div>
+
+ <div class="card">
+  <h3>Tier-3C uncertainty counterfactual</h3>
+  <div class="grid g4" style="margin-bottom:10px">
+   <div class="kpi"><div class="n" style="color:#ef7774">80%</div><div class="l">BASELINE COLLISION</div></div>
+   <div class="kpi"><div class="n">0%</div><div class="l">PROPOSED COLLISION</div></div>
+   <div class="kpi"><div class="n" style="color:#ef7774">30.3%</div><div class="l">BASELINE MPC FEASIBILITY</div></div>
+   <div class="kpi"><div class="n">98.4%</div><div class="l">PROPOSED FEASIBILITY</div></div>
+  </div>
+
+  <div class="figure" style="height:245px">
+   <svg viewBox="0 0 650 260">
+    <line x1="55" y1="215" x2="610" y2="215" stroke="#38535c"/>
+    <line x1="55" y1="35" x2="55" y2="215" stroke="#38535c"/>
+    <path d="M70 195 C180 160 230 155 300 130 C380 102 450 100 585 70"
+          stroke="#ef7774" stroke-width="4" fill="none"/>
+    <path d="M70 190 C170 180 230 165 300 155 C390 140 470 130 585 120"
+          stroke="#71df9b" stroke-width="4" fill="none"/>
+    <path d="M70 195 C180 180 240 160 310 150 C400 132 470 125 585 120"
+          stroke="#71df9b" stroke-width="1" stroke-dasharray="5 5" fill="none"/>
+    <text x="70" y="45" fill="#71df9b" font-size="12">uncertainty-expanded safe corridor</text>
+    <text x="70" y="65" fill="#ef7774" font-size="12">deterministic baseline crossover</text>
+    <text x="70" y="245" fill="#78939c" font-size="10">prediction horizon →</text>
+    <text x="10" y="130" fill="#78939c" font-size="10" transform="rotate(-90 10 130)">lateral position</text>
+   </svg>
+  </div>
+
+  <div class="small" style="margin-top:8px">
+   Reported at X<sub>c</sub>=25 m with σ<sub>v</sub>=0.10 m/s:
+   baseline deterministic pre-QP crossovers 11.27/20 steps versus 0 for the proposed formulation;
+   minimum corridor gap −0.20 m versus +1.34 m.
+  </div>
+ </div>
+</div>
+
+<div class="card" style="margin-top:11px">
+ <div class="grid g3">
+  <div><h3>Behavior selection</h3><span class="pill">MAINTAIN</span><span class="pill">FOLLOW</span><span class="pill">YIELD</span><span class="pill">OVERTAKE</span></div>
+  <div><h3>Trajectory execution</h3><span class="pill">curvature</span><span class="pill">velocity profile</span><span class="pill">LTV-MPC</span><span class="pill">steering delay</span></div>
+  <div><h3>Safety hierarchy</h3><span class="pill">OBB clearance</span><span class="pill">road bounds</span><span class="pill">TTC evidence</span><span class="pill">emergency stop</span></div>
+ </div>
+</div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- SLIDE 4 -->
+<!-- ========================================================= -->
+<section class="slide">
+<div class="top">
+ <div>
+  <div class="kicker">VALIDATION RESULTS</div>
+  <h2>What the current implementation demonstrates — and where it fails</h2>
+  <div class="sub">Results are reported with the experimental boundary intact. No RoadRunner, field-test, or system-level 100% safety claim is inferred from MIL results.</div>
+ </div>
+ <div class="page">04 / 06</div>
+</div>
+
+<div class="grid g4">
+ <div class="kpi"><div class="n">4.22 ms</div><div class="l">MEAN QP SOLVE · BASELINE TELEMETRY</div></div>
+ <div class="kpi"><div class="n">300/300</div><div class="l">DYNAMIC TRIALS COLLISION-FREE</div></div>
+ <div class="kpi"><div class="n">81.4%</div><div class="l">MATCHED-DISTANCE RMSE REDUCTION · CHICANE B</div></div>
+ <div class="kpi"><div class="n">860/1000</div><div class="l">OVERALL SAFETY PASS · 10×5×20</div></div>
+</div>
+
+<div class="grid g2" style="margin-top:12px;height:64%">
+ <div class="card">
+  <h3>Proposal A/B/C — controlled scenario comparison</h3>
+  <table>
+   <tr><th>SCENARIO</th><th>CONFIG</th><th>RESULT</th><th>RMSE</th><th>REVERSALS</th><th>PEAK a<sub>lat</sub></th></tr>
+   <tr><td rowspan="3">Bottleneck</td><td>A</td><td class="good">YES</td><td>5.59 cm</td><td>2</td><td>.53</td></tr>
+   <tr><td>B</td><td class="good">YES</td><td>5.59 cm</td><td>2</td><td>.53</td></tr>
+   <tr><td>C</td><td class="good">YES</td><td>5.66 cm</td><td>11</td><td>.54</td></tr>
+   <tr><td rowspan="3">Cattle</td><td>A</td><td class="good">Safe Yield</td><td>49.37 cm</td><td>6</td><td>.76</td></tr>
+   <tr><td>B</td><td class="good">Safe Yield</td><td>49.37 cm</td><td>6</td><td>.76</td></tr>
+   <tr><td>C</td><td class="good">Safe Yield</td><td>49.06 cm</td><td>3</td><td>.81</td></tr>
+   <tr><td rowspan="3">Chicane</td><td>A</td><td class="bad">NO · 65.3m</td><td>289.32 cm</td><td>6</td><td>5.19</td></tr>
+   <tr><td>B</td><td class="good">YES · 100.2m</td><td>147.86 cm</td><td>10</td><td>4.63</td></tr>
+   <tr><td>C</td><td class="bad">NO · 65.5m</td><td>331.75 cm</td><td>3</td><td>7.03</td></tr>
+  </table>
+
+  <div class="small" style="margin-top:8px">
+   Chicane RMSE comparison uses full-run values above. The
+   <strong>81.4% reduction</strong> is the fair matched-distance comparison:
+   A = 289.32 cm vs B = 53.70 cm over the common traveled distance x ≤ 65.27 m.
+  </div>
+ </div>
+
+ <div class="card">
+  <h3>Curvature-aware velocity planning</h3>
+  <div class="figure" style="height:200px">
+   <svg viewBox="0 0 650 220">
+    <line x1="55" y1="185" x2="610" y2="185" stroke="#38535c"/>
+    <line x1="55" y1="30" x2="55" y2="185" stroke="#38535c"/>
+    <path d="M60 55 L210 55 C300 55 315 160 400 165 C470 168 490 75 600 55"
+          stroke="#ef7774" stroke-width="4" fill="none"/>
+    <path d="M60 65 L210 65 C285 65 305 140 400 145 C470 150 490 80 600 65"
+          stroke="#70df9b" stroke-width="4" fill="none"/>
+    <text x="70" y="45" fill="#ef7774" font-size="11">constant / baseline speed demand</text>
+    <text x="70" y="95" fill="#70df9b" font-size="11">curvature-aware profile</text>
+    <text x="70" y="205" fill="#78939c" font-size="10">distance along path →</text>
+   </svg>
+  </div>
+  <div class="small">
+   Circular-arc validation: R ≈ 18.5 m gives κ ≈ 0.054054 m⁻¹.
+   Smooth quintic chicane: peak |κ| ≈ 0.05344 m⁻¹.
+   Reference lateral acceleration at 6.84 m/s ≈ 2.50 m/s² versus ≈5.34 m/s² at 10 m/s
+   for the same reference curvature.
+  </div>
+
+  <h3 style="margin-top:14px">Failure is informative</h3>
+  <ul>
+   <li><strong>Level 3:</strong> 40 collisions occurred under +0.02 rad steering bias.</li>
+   <li><strong>Level 6:</strong> 100 boundary violations came from an over-tight road/pass corridor configuration; no collisions.</li>
+   <li><strong>Config C chicane:</strong> 0.50 rad/s steering slew limitation caused phase lag during rapid reversal.</li>
+   <li>These failures identify concrete next engineering changes rather than being hidden from the benchmark.</li>
+  </ul>
+ </div>
+</div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- SLIDE 5 -->
+<!-- ========================================================= -->
+<section class="slide">
+<div class="top">
+ <div>
+  <div class="kicker">SCENARIOS · ROBUSTNESS · ROADMAP</div>
+  <h2>Designed around Indian-road failure modes, with explicit validation boundaries</h2>
+  <div class="sub">The architecture is scenario-oriented: every difficult traffic condition maps to a specific planning, prediction, control, or safety mechanism.</div>
+ </div>
+ <div class="page">05 / 06</div>
+</div>
+
+<div class="grid g3">
+ <div class="card">
+  <h3>01 · Unmarked village road</h3>
+  <p class="small">FreeSpaceMap generates lateral bounds without relying on lane markings.</p>
+ </div>
+ <div class="card">
+  <h3>02 · Unsignalized intersection</h3>
+  <p class="small">Interaction classification + predicted agent motion inform yield/conflict handling.</p>
+ </div>
+ <div class="card">
+  <h3>03 · Highway merge</h3>
+  <p class="small">Dynamic corridor and speed planning handle slower traffic without fixed-lane assumptions.</p>
+ </div>
+ <div class="card">
+  <h3>04 · Dense market area</h3>
+  <p class="small">Topology changes and narrow gaps are handled through free-space feasibility.</p>
+ </div>
+ <div class="card">
+  <h3>05 · Sudden cattle crossing</h3>
+  <p class="small">Prediction + coordination triggers controlled YIELD and safe deceleration.</p>
+ </div>
+ <div class="card">
+  <h3>06 · Impassable bottleneck</h3>
+  <p class="small">When a gap is not physically traversable, the safety policy commands standstill rather than forcing a maneuver.</p>
+ </div>
+</div>
+
+<div class="grid g2" style="margin-top:11px;height:48%">
+ <div class="card">
+  <h3>Measured evidence</h3>
+  <table>
+   <tr><th>TEST</th><th>RESULT</th><th>INTERPRETATION</th></tr>
+   <tr><td>300 dynamic trials</td><td class="good">300/300 collision-free</td><td>6 Indian dynamic scenarios; evaluated perception conditions</td></tr>
+   <tr><td>Latency sweep</td><td class="good">0 collisions through 160 ms</td><td>20 trials per tested delay condition</td></tr>
+   <tr><td>180–250 ms</td><td class="bad">collisions observed</td><td>empirical degradation envelope</td></tr>
+   <tr><td>300 ms</td><td class="good">early stop</td><td>fail-safe behavior, not successful navigation</td></tr>
+   <tr><td>Gap sweep</td><td class="good">≤1.60 m safe standstill</td><td>0 collisions; intervention-based safe degradation</td></tr>
+   <tr><td>Steering chatter</td><td class="good">99.93% reduction</td><td>reported robustness stress result</td></tr>
+  </table>
+ </div>
+
+ <div class="card">
+  <h3>Validation maturity: current → next</h3>
+  <div class="flow" style="margin-bottom:10px">
+   <div class="node">MIL<br>✓ current</div><div class="arrow">→</div>
+   <div class="node">RoadRunner<br>next</div><div class="arrow">→</div>
+   <div class="node">HIL / C++<br>next</div><div class="arrow">→</div>
+   <div class="node">vehicle<br>validation</div>
+  </div>
+
+  <h3>Highest-value next engineering actions</h3>
+  <ol class="small">
+   <li>Integrate RoadRunner synthetic camera/LiDAR/radar streams and tracked-object estimation.</li>
+   <li>Connect multi-step prediction directly to the planner/MPC obstacle constraints.</li>
+   <li>Add online steering-bias/disturbance estimation.</li>
+   <li>Recalibrate delay-aware steering conditioning for the full-scale vehicle model.</li>
+   <li>Port the QP/controller stack to C++ and perform HIL timing measurements.</li>
+   <li>Expand scenario coverage and conduct hardware validation before making deployment claims.</li>
+  </ol>
+ </div>
+</div>
+
+<div class="footer">
+ <span>Current evidence is simulation-based; no real-world full-scale vehicle validation is claimed.</span>
+ <span>PS26037</span>
+</div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- SLIDE 6 -->
+<!-- ========================================================= -->
+<section class="slide">
+<div class="top">
+ <div>
+  <div class="kicker">RESEARCH BASIS · CONTRIBUTION · EVIDENCE MAP</div>
+  <h2>Engineering contribution and traceable evidence</h2>
+  <div class="sub">The proposed system combines established control methods with a lane-independent, uncertainty-aware planning architecture targeted at unstructured Indian traffic.</div>
+ </div>
+ <div class="page">06 / 06</div>
+</div>
+
+<div class="grid g2">
+ <div class="card">
+  <h3>Technical contribution</h3>
+  <div class="eq">Observed environment → dynamic free-space corridor</div>
+  <div class="eq">Prediction + uncertainty → time-indexed safe topology</div>
+  <div class="eq">Topology / behavior → feasible trajectory</div>
+  <div class="eq">Curvature → velocity demand</div>
+  <div class="eq">Trajectory → constrained LTV/QP MPC</div>
+  <div class="eq">Command → independent OBB/SAT safety veto</div>
+
+  <h3 style="margin-top:12px">System-level proposition</h3>
+  <p class="small">
+   Instead of forcing unstructured traffic into a lane-centric abstraction,
+   the planner treats the road as a <strong>dynamic feasible-space problem</strong>.
+   Prediction, uncertainty, behavior selection, geometry, and control are therefore
+   connected through explicit interfaces.
+  </p>
+ </div>
+
+ <div class="card">
+  <h3>Reviewer evidence map</h3>
+  <table>
+   <tr><th>REVIEWER QUESTION</th><th>WHERE ANSWERED</th></tr>
+   <tr><td>How is lane-free driving achieved?</td><td>FreeSpaceMap + FreeSpaceBoundProvider</td></tr>
+   <tr><td>How is uncertainty represented?</td><td>horizon-growing δy<sub>unc</sub></td></tr>
+   <tr><td>How are behaviors selected?</td><td>CoordinationDecisionLayer</td></tr>
+   <tr><td>How is trajectory tracking performed?</td><td>LTV/QP MPC + bicycle model</td></tr>
+   <tr><td>How is collision safety checked?</td><td>independent OBB/SAT SafetyFilter</td></tr>
+   <tr><td>How are narrow gaps handled?</td><td>corridor feasibility + safe standstill</td></tr>
+   <tr><td>What happens under latency?</td><td>empirical operating-envelope sweep</td></tr>
+   <tr><td>Is RoadRunner validated?</td><td>not yet; integration hooks exist</td></tr>
+   <tr><td>Is raw sensor fusion implemented?</td><td>not yet; tracked-object abstraction currently used</td></tr>
+   <tr><td>Is there formal CBF certification?</td><td>no; SafetyFilter is OBB/SAT</td></tr>
+  </table>
+ </div>
+</div>
+
+<div class="grid g2" style="margin-top:11px">
+ <div class="card">
+  <h3>References</h3>
+  <div class="small">
+   <p><strong>[1]</strong> Varma et al. — IDD: A Dataset for Exploring Problems of Autonomous Navigation in Unconstrained Environments, WACV 2019.</p>
+   <p><strong>[2]</strong> Polack et al. — The Kinematic Bicycle Model: A Consistent Model for Planning Feasible Trajectories?, IEEE IV 2017.</p>
+   <p><strong>[3]</strong> Borrelli, Bemporad, Morari — Predictive Control for Linear and Hybrid Systems, Cambridge University Press, 2017.</p>
+   <p><strong>[4]</strong> Hildreth — A Quadratic Programming Procedure, Naval Research Logistics Quarterly, 1957.</p>
+   <p><strong>[5]</strong> Werling et al. — Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame, ICRA 2010.</p>
+   <p><strong>[6]</strong> Ames et al. — Control Barrier Functions: Theory and Applications, IEEE ECC 2019. Used as conceptual safety-control context; not claimed as the implemented method.</p>
+  </div>
+ </div>
+
+ <div class="card">
+  <h3>Claim discipline</h3>
+  <div class="callout">
+   <strong class="good">Demonstrated:</strong>
+   closed-loop MATLAB MIL architecture, dynamic free-space planning,
+   uncertainty-expanded corridors, QP MPC, independent safety filtering,
+   controlled scenario benchmarks.
+  </div>
+  <div class="callout" style="margin-top:7px">
+   <strong class="warn">Next validation:</strong>
+   RoadRunner sensor integration, C++/HIL execution, expanded perception,
+   online disturbance estimation, and hardware/vehicle validation.
+  </div>
+  <p class="small" style="margin-top:10px">
+   Repository: <strong>github.com/wavexnani/SIH-2026</strong>
+  </p>
+ </div>
+</div>
+
+<div class="footer">
+ <span>SIH 2026 · Problem Statement 26037 · Adaptive Path Planning & Collision Avoidance</span>
+ <span>END</span>
+</div>
+</section>
+
+</div>
+
+<script>
+let current=0;
+const slides=[...document.querySelectorAll(".slide")];
+
+function show(n){
+  current=(n+slides.length)%slides.length;
+  slides.forEach((s,i)=>s.classList.toggle("active",i===current));
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();show(current+1)}
+  if(e.key==="ArrowLeft"){e.preventDefault();show(current-1)}
+  if(/^[1-6]$/.test(e.key))show(Number(e.key)-1);
+  if(e.key.toLowerCase()==="f"){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+});
+
+let sx=null;
+document.addEventListener("touchstart",e=>sx=e.touches[0].clientX);
+document.addEventListener("touchend",e=>{
+ if(sx===null)return;
+ const dx=e.changedTouches[0].clientX-sx;
+ if(Math.abs(dx)>50)show(current+(dx<0?1:-1));
+ sx=null;
+});
+</script>
+</body>
+</html>
