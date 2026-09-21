@@ -2,1321 +2,1133 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIH 2026 PS26037 — Final Presentation: Adaptive Path Planning for Unstructured Indian Roads</title>
+<meta name="viewport" content="width=1920, height=1030, initial-scale=1.0">
+
+<title>SIH 2026 — Research Grounding & Engineering Gap</title>
+
+<!-- High-Authority Typography: Newsreader (Editorial Serif) + Inter (Precision Sans) + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&display=swap" rel="stylesheet">
+
 <style>
-  :root {
-    --bg-dark: #070b12;
-    --bg-card: rgba(15, 23, 42, 0.85);
-    --bg-card-hover: rgba(30, 41, 59, 0.9);
-    --border-subtle: rgba(148, 163, 184, 0.15);
-    --border-bright: rgba(56, 189, 248, 0.4);
-    --cyan-primary: #38bdf8;
-    --cyan-glow: rgba(56, 189, 248, 0.25);
-    --blue-accent: #2563eb;
-    --emerald-green: #10b981;
-    --amber-warning: #f59e0b;
-    --crimson-alert: #ef4444;
-    --purple-filter: #a855f7;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-dim: #64748b;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    font-family: var(--font-sans);
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    user-select: text;
-    -webkit-user-select: text;
-    background-image: 
-      radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
-      radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
-  }
-
-  ::selection {
-    background: rgba(56, 189, 248, 0.4);
-    color: #ffffff;
-  }
-
-  /* Presentation Header & Progress Bar */
-  header {
-    height: 48px;
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(11, 15, 25, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-subtle);
-    z-index: 100;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .sih-badge {
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-  }
-
-  .ps-tag {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--cyan-primary);
-    font-family: var(--font-mono);
-    letter-spacing: 0.5px;
-  }
-
-  .header-center {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-muted);
-    letter-spacing: 0.3px;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 12px;
-    font-family: var(--font-mono);
-    color: var(--text-dim);
-  }
-
-  .progress-container {
-    position: absolute;
-    top: 47px;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.05);
-    z-index: 101;
-  }
-
-  .progress-bar {
-    height: 100%;
-    width: 16.666%;
-    background: linear-gradient(90deg, var(--cyan-primary), #6366f1);
-    box-shadow: 0 0 10px var(--cyan-primary);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Main Slide Deck Container */
-  main.deck-container {
-    flex: 1;
-    position: relative;
-    width: 100%;
-    max-width: 1720px;
-    margin: 0 auto;
-    padding: 24px 36px 16px 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .slide {
-    display: none;
-    width: 100%;
-    height: 100%;
-    max-height: 860px;
-    flex-direction: column;
-    justify-content: space-between;
-    animation: fadeIn 0.35s ease-out;
-  }
-
-  .slide.active {
-    display: flex;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.99) translateY(4px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  /* Slide Typography */
-  .slide-header {
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 1px solid var(--border-subtle);
-    padding-bottom: 10px;
-  }
-
-  .slide-title-group h2 {
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .slide-title-group .slide-subtitle {
-    font-size: 13.5px;
-    color: var(--cyan-primary);
-    font-weight: 600;
-    margin-top: 3px;
-    letter-spacing: 0.2px;
-  }
-
-  .slide-category-tag {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-family: var(--font-mono);
-  }
-
-  /* Slide Content Grid Layouts */
-  .slide-content {
-    flex: 1;
-    display: grid;
-    gap: 20px;
-    min-height: 0;
-  }
-
-  .grid-2col {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .grid-3col {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-
-  .grid-left-heavy {
-    grid-template-columns: 1.15fr 0.85fr;
-  }
-
-  .grid-right-heavy {
-    grid-template-columns: 0.85fr 1.15fr;
-  }
-
-  .grid-architecture {
-    grid-template-columns: 1fr;
-  }
-
-  /* Technical Card Styles */
-  .tech-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 18px 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .tech-card:hover {
-    border-color: var(--border-bright);
-    background: var(--bg-card-hover);
-  }
-
-  .card-title {
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
-
-  .card-title .tag {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: var(--font-mono);
-  }
-
-  .tag-green { background: rgba(16, 185, 129, 0.15); color: var(--emerald-green); border: 1px solid rgba(16, 185, 129, 0.3); }
-  .tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--cyan-primary); border: 1px solid rgba(56, 189, 248, 0.3); }
-  .tag-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber-warning); border: 1px solid rgba(245, 158, 11, 0.3); }
-  .tag-purple { background: rgba(168, 85, 247, 0.15); color: var(--purple-filter); border: 1px solid rgba(168, 85, 247, 0.3); }
-
-  /* Large KPI Metric Display */
-  .kpi-metric-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .kpi-card {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-left: 3px solid var(--cyan-primary);
-  }
-
-  .kpi-value {
-    font-size: 26px;
-    font-weight: 900;
-    color: #ffffff;
-    font-family: var(--font-mono);
-    line-height: 1.1;
-  }
-
-  .kpi-value.green { color: var(--emerald-green); }
-  .kpi-value.blue { color: var(--cyan-primary); }
-  .kpi-value.purple { color: #c084fc; }
-  .kpi-value.amber { color: var(--amber-warning); }
-
-  .kpi-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-top: 4px;
-    letter-spacing: 0.3px;
-  }
-
-  .kpi-sub {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 2px;
-  }
-
-  /* Technical Flow Pipeline Block (Slide 2) */
-  .pipeline-flow {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .pipeline-step {
-    display: grid;
-    grid-template-columns: 180px 1fr 110px;
-    align-items: center;
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid var(--border-subtle);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-
-  .pipeline-step.active-layer {
-    background: rgba(14, 165, 233, 0.08);
-    border-color: rgba(56, 189, 248, 0.3);
-  }
-
-  .step-name {
-    font-weight: 700;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .step-desc {
-    color: var(--text-muted);
-    font-size: 11.5px;
-  }
-
-  .step-badge {
-    text-align: right;
-  }
-
-  /* Image Containers */
-  .image-preview-card {
-    background: rgba(10, 15, 26, 0.9);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-  }
-
-  .image-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    background: #020617;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .image-wrapper img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 4px;
-    transition: transform 0.2s ease;
-  }
-
-  .image-caption {
-    background: rgba(15, 23, 42, 0.95);
-    border-top: 1px solid var(--border-subtle);
-    padding: 8px 12px;
-    font-size: 11px;
-    color: var(--text-muted);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .image-caption strong {
-    color: #ffffff;
-  }
-
-  /* Callout and Caveat Boxes */
-  .caveat-box {
-    background: rgba(245, 158, 11, 0.07);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-left: 3px solid var(--amber-warning);
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 11px;
-    color: #cbd5e1;
-    line-height: 1.4;
-    margin-top: 8px;
-  }
-
-  .caveat-box strong {
-    color: var(--amber-warning);
-    text-transform: uppercase;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-  }
-
-  .success-box {
-    background: rgba(16, 185, 129, 0.07);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    border-left: 3px solid var(--emerald-green);
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 11px;
-    color: #cbd5e1;
-    line-height: 1.4;
-    margin-top: 8px;
-  }
-
-  .success-box strong {
-    color: var(--emerald-green);
-    text-transform: uppercase;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-  }
-
-  /* Tables */
-  .tech-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11.5px;
-    margin-top: 4px;
-  }
-
-  .tech-table th {
-    text-align: left;
-    padding: 6px 10px;
-    background: rgba(30, 41, 59, 0.6);
-    color: var(--text-muted);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .tech-table td {
-    padding: 7px 10px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-    color: #e2e8f0;
-  }
-
-  .tech-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .tech-table .mono {
-    font-family: var(--font-mono);
-  }
-
-  /* Presentation Footer Controls */
-  footer {
-    height: 54px;
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(11, 15, 25, 0.95);
-    border-top: 1px solid var(--border-subtle);
-    z-index: 100;
-  }
-
-  .footer-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .nav-btn {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-main);
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .nav-btn:hover {
-    background: rgba(56, 189, 248, 0.2);
-    border-color: var(--cyan-primary);
-    color: #ffffff;
-  }
-
-  .slide-dots {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .dot-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-muted);
-    font-size: 11px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .dot-btn.active {
-    background: var(--cyan-primary);
-    color: #070b12;
-    border-color: var(--cyan-primary);
-    box-shadow: 0 0 10px var(--cyan-glow);
-  }
-
-  .footer-status {
-    font-size: 12px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-  }
-
-  .footer-status span.hotkey {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: var(--text-muted);
-    margin: 0 2px;
-  }
-
-  /* Interactive Image Modal for Fullscreen inspection */
-  #imageModal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(5, 8, 15, 0.95);
-    z-index: 1000;
-    padding: 30px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #imageModal.active { display: flex; }
-  #imageModal img { max-width: 92%; max-height: 86vh; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-bright); }
-  #imageModalClose {
-    position: absolute; top: 20px; right: 28px;
-    background: rgba(30, 41, 59, 0.8); border: 1px solid var(--border-subtle);
-    color: #ffffff; font-size: 14px; font-weight: 700;
-    padding: 6px 14px; border-radius: 6px; cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-  }
+    /* =========================================================
+       CSS RESET & VARIABLES
+       ========================================================= */
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    html, body {
+        width: 100%;
+        height: 100%;
+        background: #111418;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    :root {
+        --color-bg-canvas: #fcfbf8;
+        --color-card-bg: #ffffff;
+        --color-card-alt: #f9f8f4;
+
+        --color-ink-primary: #12151a;
+        --color-ink-secondary: #2f3540;
+        --color-ink-muted: #57606e;
+        --color-ink-light: #7a8594;
+
+        --color-gold-primary: #9b7218;
+        --color-gold-accent: #c59a32;
+        --color-gold-soft: #fbf8f0;
+        --color-gold-border: #e3d5b5;
+
+        --color-line-dark: #1c2026;
+        --color-line-medium: #cbd2dc;
+        --color-line-light: #e6e9ee;
+        --color-line-card: #dedad0;
+
+        --font-serif: 'Newsreader', Garamond, 'Times New Roman', Georgia, serif;
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    }
+
+    /* =========================================================
+       SLIDE CANVAS (EXACT 1920 × 1030)
+       ========================================================= */
+    .slide {
+        position: relative;
+        width: 1920px;
+        height: 1030px;
+        margin: 0 auto;
+        background: var(--color-bg-canvas);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 44px 18px 44px;
+        gap: 11px;
+        box-shadow: 0 35px 70px rgba(0, 0, 0, 0.5);
+    }
+
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+
+    /* =========================================================
+       1. HEADER (Height: 82px)
+       ========================================================= */
+    .header {
+        height: 82px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 2px solid var(--color-line-dark);
+        padding-bottom: 10px;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .header-left {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .header-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: var(--color-gold-primary);
+        margin-bottom: 3px;
+    }
+
+    .header-title {
+        font-family: var(--font-serif);
+        font-size: 34px;
+        line-height: 1.05;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+        letter-spacing: -0.4px;
+    }
+
+    .header-title span.arrow {
+        color: var(--color-gold-accent);
+        font-style: normal;
+        font-family: var(--font-sans);
+        margin: 0 6px;
+    }
+
+    .header-title span.highlight {
+        color: var(--color-gold-primary);
+        font-style: italic;
+    }
+
+    .header-subtitle {
+        font-family: var(--font-sans);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-ink-muted);
+        margin-top: 3px;
+    }
+
+    /* Right Header: Team Seal & Problem Meta */
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .team-seal {
+        height: 64px;
+        padding: 0 16px;
+        border: 1.5px solid var(--color-ink-primary);
+        outline: 1px solid var(--color-gold-accent);
+        outline-offset: -4px;
+        border-radius: 999px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+    }
+
+    .team-seal-prefix {
+        font-family: var(--font-sans);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--color-gold-primary);
+        line-height: 1;
+        margin-bottom: 2px;
+    }
+
+    .team-seal-name {
+        font-family: var(--font-serif);
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+        line-height: 1;
+    }
+
+    .header-ps-box {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .header-ps-title {
+        font-family: var(--font-sans);
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+        line-height: 1.2;
+    }
+
+    .header-ps-sub {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--color-gold-primary);
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    /* =========================================================
+       2. RESEARCH CHAIN (5 Horizontal Cards - Height: 84px)
+       ========================================================= */
+    .chain-container {
+        height: 84px;
+        display: grid;
+        grid-template-columns: 1fr 28px 1.05fr 28px 1.05fr 28px 1.15fr 28px 1fr;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .chain-card {
+        height: 84px;
+        background: var(--color-card-bg);
+        border: 1px solid var(--color-line-card);
+        border-top: 3px solid var(--color-ink-primary);
+        border-radius: 4px;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+
+    .chain-card.gold-card {
+        border-top-color: var(--color-gold-accent);
+        background: var(--color-gold-soft);
+    }
+
+    .chain-card.active-card {
+        border-top-color: var(--color-gold-primary);
+        background: #fffdf9;
+    }
+
+    .chain-num {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--color-gold-primary);
+    }
+
+    .chain-title {
+        font-family: var(--font-sans);
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+        line-height: 1.15;
+    }
+
+    .chain-text {
+        font-family: var(--font-sans);
+        font-size: 11px;
+        line-height: 1.25;
+        color: var(--color-ink-muted);
+    }
+
+    .chain-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-sans);
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--color-gold-primary);
+    }
+
+    /* =========================================================
+       3. RESEARCH LANDSCAPE TABLE (Height: 254px)
+       ========================================================= */
+    .landscape-wrapper {
+        height: 254px;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .section-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+
+    .section-label {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: var(--color-gold-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .section-label::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        background: var(--color-gold-primary);
+        border-radius: 50%;
+    }
+
+    .section-sublabel {
+        font-family: var(--font-sans);
+        font-size: 11px;
+        color: var(--color-ink-light);
+    }
+
+    .landscape-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #ffffff;
+        border: 1px solid var(--color-line-card);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .landscape-table th {
+        background: #ede9df;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--color-ink-primary);
+        padding: 7px 14px;
+        text-align: left;
+        border-bottom: 1.5px solid var(--color-line-dark);
+        border-right: 1px solid var(--color-line-medium);
+    }
+    .landscape-table th:last-child {
+        border-right: none;
+    }
+
+    .landscape-table td {
+        font-family: var(--font-sans);
+        font-size: 12px;
+        line-height: 1.28;
+        color: var(--color-ink-secondary);
+        padding: 7px 14px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-line-light);
+        border-right: 1px solid var(--color-line-light);
+        height: 48px;
+    }
+    .landscape-table td:last-child {
+        border-right: none;
+    }
+    .landscape-table tr:last-child td {
+        border-bottom: none;
+    }
+    .landscape-table tr:nth-child(even) td {
+        background: #fafaf7;
+    }
+
+    .res-col {
+        width: 21%;
+    }
+    .cap-col {
+        width: 29%;
+    }
+    .lim-col {
+        width: 25%;
+    }
+    .resp-col {
+        width: 25%;
+        background: #fdfbf7 !important;
+        border-left: 1px solid var(--color-gold-border);
+    }
+
+    .res-title {
+        font-family: var(--font-serif);
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+    }
+    .res-sub {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--color-gold-primary);
+        font-weight: 500;
+        display: block;
+        margin-top: 1px;
+    }
+
+    .resp-header {
+        font-weight: 700;
+        color: var(--color-ink-primary);
+    }
+    .resp-highlight {
+        color: var(--color-gold-primary);
+        font-weight: 600;
+    }
+
+    /* =========================================================
+       4. LOWER THREE-PANEL AREA (Height: 310px)
+       ========================================================= */
+    .lower-grid {
+        height: 310px;
+        display: grid;
+        grid-template-columns: 1.05fr 1.15fr 0.95fr;
+        gap: 14px;
+        flex-shrink: 0;
+    }
+
+    .panel {
+        background: #ffffff;
+        border: 1px solid var(--color-line-card);
+        border-radius: 4px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        overflow: hidden;
+    }
+
+    .panel-header {
+        margin-bottom: 8px;
+    }
+
+    .panel-tag {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--color-gold-primary);
+        margin-bottom: 2px;
+    }
+
+    .panel-title {
+        font-family: var(--font-serif);
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.15;
+        color: var(--color-ink-primary);
+    }
+
+    /* Panel 1: Gap Table */
+    .gap-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        line-height: 1.22;
+        margin-top: 2px;
+    }
+
+    .gap-table th {
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--color-ink-muted);
+        background: #f4f2eb;
+        padding: 5px 6px;
+        border: 1px solid var(--color-line-medium);
+        text-align: left;
+    }
+
+    .gap-table td {
+        padding: 6px 6px;
+        border: 1px solid var(--color-line-light);
+        vertical-align: top;
+        color: var(--color-ink-secondary);
+    }
+
+    .gap-table tr:nth-child(even) td {
+        background: #fcfcf9;
+    }
+
+    .gap-table td b {
+        color: var(--color-ink-primary);
+    }
+
+    .gap-table .response-cell {
+        background: var(--color-gold-soft);
+        border-left: 2px solid var(--color-gold-accent);
+    }
+
+    /* Panel 2: Response Pipeline Steps */
+    .flow-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 6px;
+    }
+
+    .flow-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 6px;
+        border-radius: 3px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .flow-item:nth-child(even) {
+        background: #ffffff;
+    }
+
+    .flow-badge {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        color: #ffffff;
+        background: var(--color-ink-primary);
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .flow-badge.gold-badge {
+        background: var(--color-gold-primary);
+    }
+
+    .flow-content {
+        font-family: var(--font-sans);
+        font-size: 11.5px;
+        line-height: 1.2;
+        color: var(--color-ink-secondary);
+    }
+
+    .flow-content strong {
+        color: var(--color-ink-primary);
+        font-weight: 700;
+    }
+
+    .flow-content span.dim {
+        color: var(--color-ink-muted);
+        font-size: 10.5px;
+        margin-left: 4px;
+    }
+
+    .key-integration-box {
+        background: linear-gradient(135deg, #fcfbf8 0%, #f6f1e3 100%);
+        border: 1px solid var(--color-gold-border);
+        border-left: 3px solid var(--color-gold-primary);
+        border-radius: 3px;
+        padding: 6px 10px;
+        font-family: var(--font-sans);
+        font-size: 11px;
+        line-height: 1.25;
+        color: var(--color-ink-primary);
+    }
+
+    .key-integration-box strong {
+        color: var(--color-gold-primary);
+    }
+
+    /* Panel 3: Validation Resources */
+    .val-stages {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .val-stage-card {
+        border: 1px solid var(--color-line-card);
+        border-radius: 3px;
+        padding: 5px 8px;
+        background: #fdfdfb;
+    }
+
+    .val-stage-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2px;
+    }
+
+    .val-stage-name {
+        font-family: var(--font-sans);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--color-ink-primary);
+    }
+
+    .val-status-pill {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 1px 6px;
+        border-radius: 2px;
+    }
+
+    .pill-current {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+
+    .pill-target {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .pill-next {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .val-stage-desc {
+        font-family: var(--font-sans);
+        font-size: 10px;
+        line-height: 1.2;
+        color: var(--color-ink-muted);
+    }
+
+    .val-guardrail-box {
+        margin-top: 4px;
+        border-top: 1px dashed var(--color-line-medium);
+        padding-top: 4px;
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+        line-height: 1.2;
+        color: #991b1b;
+        background: #fff5f5;
+        border: 1px solid #fecaca;
+        border-radius: 3px;
+        padding: 4px 6px;
+    }
+
+    /* =========================================================
+       5. SELECTED REFERENCES TABLE (Height: 152px)
+       ========================================================= */
+    .ref-wrapper {
+        height: 152px;
+        border-top: 2px solid var(--color-line-dark);
+        padding-top: 5px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        flex-shrink: 0;
+    }
+
+    .ref-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+    }
+
+    .ref-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #ffffff;
+        border: 1px solid var(--color-line-card);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+    }
+
+    .ref-table th {
+        background: #ede9df;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        color: var(--color-ink-primary);
+        padding: 4px 8px;
+        text-align: left;
+        border-bottom: 1.5px solid var(--color-line-dark);
+        border-right: 1px solid var(--color-line-medium);
+    }
+    .ref-table th:last-child {
+        border-right: none;
+    }
+
+    .ref-table td {
+        font-family: var(--font-sans);
+        font-size: 10.5px;
+        line-height: 1.22;
+        color: var(--color-ink-secondary);
+        padding: 3.5px 8px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-line-light);
+        border-right: 1px solid var(--color-line-light);
+    }
+    .ref-table td:last-child {
+        border-right: none;
+    }
+    .ref-table tr:last-child td {
+        border-bottom: none;
+    }
+    .ref-table tr:nth-child(even) td {
+        background: #fafaf7;
+    }
+
+    .ref-tag-col {
+        width: 45px;
+        text-align: center !important;
+        font-family: var(--font-mono);
+        font-weight: 700;
+        color: var(--color-gold-primary);
+        background: #fbf9f4 !important;
+    }
+    .ref-title-col {
+        width: 37%;
+    }
+    .ref-venue-col {
+        width: 17%;
+        font-family: var(--font-sans);
+        color: var(--color-ink-muted);
+    }
+    .ref-claim-col {
+        width: 30%;
+        background: #fdfbf7 !important;
+    }
+    .ref-doi-col {
+        width: 13%;
+        text-align: right;
+    }
+
+    .ref-doi-link {
+        color: var(--color-gold-primary);
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+        font-weight: 600;
+    }
+
+    /* =========================================================
+       6. FOOTER BAR (Height: 22px)
+       ========================================================= */
+    .footer {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--color-line-light);
+        padding-top: 4px;
+        flex-shrink: 0;
+    }
+
+    .footer-left {
+        font-family: var(--font-sans);
+        font-size: 10.5px;
+        color: var(--color-ink-muted);
+    }
+    .footer-left strong {
+        color: var(--color-ink-primary);
+    }
+
+    .footer-right {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--color-gold-primary);
+    }
 </style>
 </head>
+
 <body>
 
-<!-- Header Bar -->
-<header>
-  <div class="header-left">
-    <span class="sih-badge">SIH 2026</span>
-    <span class="ps-tag">PS26037 — UNSTRUCTURED INDIAN ROAD AUTONOMY</span>
-  </div>
-  <div class="header-center" id="headerSlideTitle">Slide 1 / 6 — Title &amp; Core Challenge</div>
-  <div class="header-right">
-    <span>MATLAB / SIMULINK MIL</span>
-    <span>•</span>
-    <span>FROZEN BASELINE</span>
-  </div>
-</header>
+<div class="slide">
 
-<!-- Progress Bar -->
-<div class="progress-container">
-  <div class="progress-bar" id="progressBar"></div>
-</div>
-
-<!-- Slide Deck Container -->
-<main class="deck-container">
-
-  <!-- ========================================================================= -->
-  <!-- SLIDE 1: TITLE / PROBLEM                                                  -->
-  <!-- ========================================================================= -->
-  <section class="slide active" id="slide1">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Adaptive Path Planning &amp; Collision Avoidance</h2>
-        <div class="slide-subtitle">Risk-Aware Free-Space Navigation + Constrained Predictive Control for Unstructured Indian Roads</div>
-      </div>
-      <div class="slide-category-tag">PROBLEM DEFINITION &bull; SLIDE 1 / 6</div>
-    </div>
-
-    <div class="slide-content grid-left-heavy">
-      <!-- Left Column: Core Technical Problem Statement -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 14px;">
-        <div class="card-title">
-          <span>THE UNSTRUCTURED ROAD CHALLENGE</span>
-          <span class="tag tag-amber">CORE PROBLEM</span>
-        </div>
-
-        <p style="font-size: 14px; line-height: 1.5; color: #f1f5f9; font-weight: 500;">
-          Indian road environments cannot be represented by rigid lane geometries. High-density mixed traffic, sudden livestock incursions, unmarked village corridors, and informal yielding invalidate classical lane-following autonomy.
-        </p>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;">
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 6px; border-left: 3px solid #f97316;">
-            <strong style="color: #f97316; font-size: 11px; text-transform: uppercase;">1. Lane Absence &amp; Boundary Drift</strong>
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Faded or non-existent lane markings. Drivable bounds must be synthesized dynamically from open free space.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 6px; border-left: 3px solid #eab308;">
-            <strong style="color: #eab308; font-size: 11px; text-transform: uppercase;">2. Heterogeneous Road Users</strong>
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Simultaneous interaction with commercial vehicles, auto-rickshaws, two-wheelers, pedestrians, and cattle.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 6px; border-left: 3px solid #38bdf8;">
-            <strong style="color: var(--cyan-primary); font-size: 11px; text-transform: uppercase;">3. Motion Uncertainty Spikes</strong>
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Unpredictable cutting and lateral shifts require dynamic uncertainty-expanded spatial safety corridors.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 6px; border-left: 3px solid #10b981;">
-            <strong style="color: var(--emerald-green); font-size: 11px; text-transform: uppercase;">4. Tight Temporal Deadlines</strong>
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Real-time closed-loop execution budget &le; 20 ms (50 Hz) for online convex QP trajectory optimization.</p>
-          </div>
-        </div>
-
-        <div class="caveat-box">
-          <strong>Perception Modeling Boundary:</strong> Current simulation pipeline employs an analytical <em>Tracked-Object ObservationModel</em> (with injected position/velocity noise, tracking latency, and false positive/negative perturbations). Raw camera/LiDAR hardware fusion represents the next integration stage.
-        </div>
-
-        <div style="margin-top: auto; display: flex; gap: 10px; align-items: center; background: rgba(15, 23, 42, 0.9); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-          <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">PLATFORM:</span>
-          <span class="tag tag-blue">MATLAB R2024b</span>
-          <span class="tag tag-green">Simulink Stateflow</span>
-          <span class="tag tag-purple">Bicycle Kinematics &amp; Dynamics</span>
-          <span class="tag tag-amber">Hildreth Dual QP</span>
-        </div>
-      </div>
-
-      <!-- Right Column: Hero Visual from Tested Corridor Scenario -->
-      <div class="image-preview-card">
-        <div class="image-wrapper" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/phase20_hero_level5.png')">
-          <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/phase20_hero_level5.png" 
-               onerror="this.onerror=null; this.src='assets/phase20_hero_level5.png';"
-               alt="Level 5 Multi-Vehicle Yield & Overtake Hero Trajectory">
-        </div>
-        <div class="image-caption">
-          <span><strong>Hero Validation Scenario:</strong> Level 5 Multi-Vehicle Yield &amp; Overtake Trajectory</span>
-          <span class="tag tag-green">TESTED &bull; 0 COLLISIONS</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- SLIDE 2: PROPOSED SOLUTION                                                -->
-  <!-- ========================================================================= -->
-  <section class="slide" id="slide2">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Lane-Independent Navigation Through Dynamic Free Space</h2>
-        <div class="slide-subtitle">Hierarchical Predictive Pipeline: From Tracked Observations to Safe Closed-Loop Trajectory Tracking</div>
-      </div>
-      <div class="slide-category-tag">SYSTEM ARCHITECTURE &bull; SLIDE 2 / 6</div>
-    </div>
-
-    <div class="slide-content grid-left-heavy">
-      <!-- Left Column: Step-by-Step Architecture Stack -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 8px; overflow-y: auto;">
-        <div class="card-title">
-          <span>END-TO-END EXECUTION CASCADE</span>
-          <span class="tag tag-blue">12-BLOCK PIPELINE</span>
-        </div>
-
-        <div class="pipeline-flow">
-          <div class="pipeline-step active-layer">
-            <span class="step-name">1. ObservationModel</span>
-            <span class="step-desc">Analytical tracked-object perception with Gaussian noise, false negatives, and latency</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">2. FreeSpaceMap</span>
-            <span class="step-desc">Dynamic lateral corridor bounds [y_min(k), y_max(k)] derived from road boundaries &amp; obstacles</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">3. Prediction &amp; Risk</span>
-            <span class="step-desc">1.0s constant-velocity trajectory projection + 2&sigma; velocity variance expansion</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">4. Interaction Classifier</span>
-            <span class="step-desc">TTC evaluation, longitudinal clearance tracking, and oncoming conflict detection</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">5. Coordination Decision</span>
-            <span class="step-desc">Topological state machine: CRUISE &rarr; FOLLOW &rarr; YIELD &rarr; OVERTAKE &rarr; SAFE_STOP</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">6. CA-CRC / QP-MPC</span>
-            <span class="step-desc">Hildreth dual active-set QP optimizing smooth lateral path within convex corridor</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">7. Curvature Velocity</span>
-            <span class="step-desc">Menger discrete curvature profiling with bidirectional DP pre-braking (a_lat &le; 2.5 m/s&sup2;)</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">8. Steering Filter</span>
-            <span class="step-desc">Slew-rate limiting (&plusmn;0.5 rad/s) + &plusmn;0.015 rad deadband to suppress solver chatter</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step active-layer">
-            <span class="step-name">9. Layer 2 SafetyFilter</span>
-            <span class="step-desc">Independent runtime OBB / SAT collision check with instant emergency braking authority</span>
-            <span class="step-badge"><span class="tag tag-green">TESTED</span></span>
-          </div>
-          <div class="pipeline-step">
-            <span class="step-name" style="color: var(--text-muted);">10. Sensor Fusion (Next)</span>
-            <span class="step-desc">Point-cloud ingestion, EKF/UKF state estimation, and RoadRunner co-simulation</span>
-            <span class="step-badge"><span class="tag tag-amber">ROADMAP</span></span>
-          </div>
-        </div>
-
-        <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); display: flex; justify-content: space-between;">
-          <span>Green = Implemented &amp; Validated in MATLAB MIL</span>
-          <span>Amber = Proposed RoadRunner / Physical Sensor Stage</span>
-        </div>
-      </div>
-
-      <!-- Right Column: Bottleneck Proof of Concept -->
-      <div class="tech-card" style="gap: 10px;">
-        <div class="card-title">
-          <span>VALIDATION CASE: 2.0m PHYSICAL BOTTLENECK</span>
-          <span class="tag tag-green">100% COMPLETE</span>
-        </div>
-
-        <div class="image-wrapper" style="height: 220px;" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/final_bottleneck_baseline_vs_freespace.png')">
-          <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/final_bottleneck_baseline_vs_freespace.png" 
-               onerror="this.onerror=null; this.src='assets/final_bottleneck_baseline_vs_freespace.png';"
-               alt="Bottleneck Baseline vs Proposed Free Space">
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-          <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px; border-radius: 6px;">
-            <strong style="color: var(--crimson-alert);">Fixed-Lane Baseline:</strong><br>
-            Centerline blocked by stall debris &amp; rickshaw. Cannot exploit open corridor &rarr; Stalled / Aborted.
-          </div>
-          <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px; border-radius: 6px;">
-            <strong style="color: var(--emerald-green);">Proposed Free-Space Planner:</strong><br>
-            Extracts dynamic [y_min, y_max] corridor. Passes 2.0m gap with +0.10m true bumper OBB clearance.
-          </div>
-        </div>
-
-        <table class="tech-table">
-          <tr><th>Scenario Metric</th><th>Target Parameter</th><th>Measured Simulation Output</th></tr>
-          <tr><td>Bottleneck Physical Width</td><td class="mono">2.00 m</td><td class="mono">1.80m vehicle width (0.20m margin)</td></tr>
-          <tr><td>Minimum True OBB Clearance</td><td class="mono">&gt; 0.00 m</td><td class="mono" style="color: var(--emerald-green); font-weight: 700;">+0.10 m safe clearance</td></tr>
-          <tr><td>Longitudinal Progress</td><td class="mono">75.0 m</td><td class="mono" style="color: var(--emerald-green); font-weight: 700;">75.21 m (100% Completed)</td></tr>
-          <tr><td>Collisions / Safety Stops</td><td class="mono">0</td><td class="mono" style="color: var(--emerald-green); font-weight: 700;">0 Collisions &bull; 0 Aborts</td></tr>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- SLIDE 3: TECHNICAL APPROACH                                               -->
-  <!-- ========================================================================= -->
-  <section class="slide" id="slide3">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Prediction &rarr; Risk &rarr; Free Space &rarr; Constrained Control</h2>
-        <div class="slide-subtitle">Uncertainty-Expanded Spatial Corridors and Dual Active-Set Predictive Trajectory Optimization</div>
-      </div>
-      <div class="slide-category-tag">THEORETICAL FOUNDATION &bull; SLIDE 3 / 6</div>
-    </div>
-
-    <div class="slide-content grid-left-heavy">
-      <!-- Left Column: Core Formulations & Flow -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 12px; overflow-y: auto;">
-        <div class="card-title">
-          <span>MATHEMATICAL &amp; CONTROL PIPELINE</span>
-          <span class="tag tag-blue">CONVEX CONSTRAINTS</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-          <!-- 1. Free Space -->
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--cyan-primary);">
-            <strong style="color: var(--cyan-primary); font-size: 11px;">1. DYNAMIC FREE-SPACE EXTRACTION</strong>
-            <p style="color: var(--text-muted); margin-top: 2px;">
-              At each step <em>k</em> across prediction horizon <em>N<sub>p</sub>=10</em>, extract drivable interval:<br>
-              <code style="color: #ffffff; font-family: var(--font-mono);">y_min(k) &le; y_ego(k) &le; y_max(k)</code> derived from road boundaries minus obstacle forbidden zones.
+    <!-- =====================================================
+         1. HEADER
+         ====================================================== -->
+    <header class="header">
+        <div class="header-left">
+            <div class="header-tag">Smart India Hackathon 2026 · PS 26037</div>
+            <h1 class="header-title">
+                Research Grounding <span class="arrow">➔</span> Engineering Gap <span class="arrow">➔</span> <span class="highlight">Our Response</span>
+            </h1>
+            <p class="header-subtitle">
+                From documented Indian-road complexity to a testable lane-independent planning architecture
             </p>
-          </div>
+        </div>
 
-          <!-- 2. Uncertainty Expansion -->
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #eab308;">
-            <strong style="color: #eab308; font-size: 11px;">2. SHORT-HORIZON PREDICTION &amp; 2&sigma; UNCERTAINTY EXPANSION</strong>
-            <p style="color: var(--text-muted); margin-top: 2px;">
-              Kinematic projection of agent <em>j</em> with velocity uncertainty:<br>
-              <code style="color: #ffffff; font-family: var(--font-mono);">&ycirc;_j(&tau;) = y_j + v_y,j &bull; &tau;, &nbsp; &delta;y_unc(&tau;) = 2 &bull; &sigma;_v &bull; &tau;</code>
-            </p>
-            <div class="caveat-box" style="margin-top: 4px; padding: 4px 8px;">
-              <strong>Statistical Note:</strong> 2&sigma; expansion corresponds to &approx;95.45% coverage under the assumed Gaussian velocity model. This is an engineering heuristic, not a formal probabilistic guarantee.
+        <div class="header-right">
+            <div class="team-seal">
+                <span class="team-seal-prefix">SIH Team</span>
+                <span class="team-seal-name">Pakka Deploy Hoga</span>
             </div>
-          </div>
-
-          <!-- 3. Hildreth Dual QP -->
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--emerald-green);">
-            <strong style="color: var(--emerald-green); font-size: 11px;">3. CONSTRAINED RECEDING-HORIZON QP-MPC</strong>
-            <p style="color: var(--text-muted); margin-top: 2px;">
-              Solves convex quadratic program via Hildreth dual active-set procedure:<br>
-              <code style="color: #ffffff; font-family: var(--font-mono);">min_U &frac12; U' H U + F' U &nbsp; s.t. &nbsp; G U &le; W</code><br>
-              Enforcing lateral boundaries, steering limits (&plusmn;35&deg;), and acceleration bounds [-6.0, +3.0] m/s&sup2;.
-            </p>
-          </div>
-
-          <!-- 4. Runtime Safety Filter -->
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--crimson-alert);">
-            <strong style="color: var(--crimson-alert); font-size: 11px;">4. INDEPENDENT RUNTIME SAFETY FILTER (LAYER 2)</strong>
-            <p style="color: var(--text-muted); margin-top: 2px;">
-              Evaluates proposed control <em>u<sub>cmd</sub></em> using forward trajectory projection and Oriented Bounding Box (OBB) Separating Axis Theorem (SAT) checks. Executes emergency braking if boundary or clearance violations are imminent.
-            </p>
-            <span style="font-size: 10px; color: var(--text-dim); display: block; margin-top: 2px;">
-              *Clarification: The safety filter is an independent geometric OBB/SAT veto, not a Control Barrier Function (CBF).
-            </span>
-          </div>
+            <div class="header-ps-box">
+                <div class="header-ps-title">Adaptive Path Planning &amp; Collision Avoidance</div>
+                <div class="header-ps-sub">Unstructured Indian Roads · Slide 06</div>
+            </div>
         </div>
-      </div>
+    </header>
 
-      <!-- Right Column: Tier3C Counterfactual Proof -->
-      <div class="tech-card" style="gap: 10px;">
-        <div class="card-title">
-          <span>TIER 3C COUNTERFACTUAL EXPERIMENT: UNCERTAINTY BENEFIT</span>
-          <span class="tag tag-blue">10-TRIAL AUDIT</span>
+    <!-- =====================================================
+         2. RESEARCH CHAIN (5 CARDS)
+         ====================================================== -->
+    <section class="chain-container">
+        <div class="chain-card">
+            <div class="chain-num">01 · Problem Evidence</div>
+            <div class="chain-title">Indian Roads Break Rigid Lanes</div>
+            <div class="chain-text">IDD documents heterogeneous, unconstrained road scenes and diverse user classes.</div>
         </div>
 
-        <div class="image-wrapper" style="height: 250px;" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/tier3c_baseline_vs_proposed_counterfactual_4panel.png')">
-          <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/tier3c_baseline_vs_proposed_counterfactual_4panel.png" 
-               onerror="this.onerror=null; this.src='assets/tier3c_baseline_vs_proposed_counterfactual_4panel.png';"
-               alt="Tier 3C Counterfactual 4-Panel Telemetry">
+        <div class="chain-arrow">→</div>
+
+        <div class="chain-card">
+            <div class="chain-num">02 · Prior Art</div>
+            <div class="chain-title">Established Core Building Blocks</div>
+            <div class="chain-text">Lane-free control, predictive MPC, vehicle kinematics, and runtime shielding exist in literature.</div>
         </div>
 
-        <table class="tech-table">
-          <tr><th>Metric</th><th>Deterministic Baseline</th><th>Uncertainty-Expanded (Proposed)</th><th>Delta</th></tr>
-          <tr><td>Collision Rate (10 Trials)</td><td class="mono" style="color: var(--crimson-alert); font-weight: 700;">80% (8 / 10 collisions)</td><td class="mono" style="color: var(--emerald-green); font-weight: 700;">0% (0 / 10 collisions)</td><td class="mono" style="color: var(--emerald-green);">-80.0%</td></tr>
-          <tr><td>QP Solver Feasibility</td><td class="mono" style="color: var(--crimson-alert);">30.3% Feasible (69.7% Reject)</td><td class="mono" style="color: var(--emerald-green); font-weight: 700;">98.4% Feasible Steps</td><td class="mono" style="color: var(--emerald-green);">+68.1%</td></tr>
-          <tr><td>Geometric Contradictions</td><td class="mono">High (y_max &lt; y_min crossovers)</td><td class="mono" style="color: var(--emerald-green);">0 Crossovers</td><td class="mono">Eliminated</td></tr>
+        <div class="chain-arrow">→</div>
+
+        <div class="chain-card">
+            <div class="chain-num">03 · Remaining Gap</div>
+            <div class="chain-title">Closing Loop in Chaotic Traffic</div>
+            <div class="chain-text">Prior work assumes either open-loop vision (IDD) or 100% cooperative CAV highway flow (TrafficFluid).</div>
+        </div>
+
+        <div class="chain-arrow">→</div>
+
+        <div class="chain-card active-card">
+            <div class="chain-num">04 · Our Response</div>
+            <div class="chain-title">Free Space → QP-MPC → Safety Veto</div>
+            <div class="chain-text">Dynamic bounds replace lane centerlines; velocity uncertainty expands corridors; OBB/SAT guards safety.</div>
+        </div>
+
+        <div class="chain-arrow">→</div>
+
+        <div class="chain-card gold-card">
+            <div class="chain-num">05 · Data &amp; Validation</div>
+            <div class="chain-title">Explicit Validation Boundaries</div>
+            <div class="chain-text">IDD/IDD-3D are target perception datasets; MATLAB MIL is current; RoadRunner &amp; HIL are staged next.</div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         3. RESEARCH LANDSCAPE TABLE
+         ====================================================== -->
+    <section class="landscape-wrapper">
+        <div class="section-label-row">
+            <div class="section-label">Research Landscape: Prior Art, Limitations &amp; Our Engineering Response</div>
+            <div class="section-sublabel">Rigorous mapping of peer-reviewed foundations to PS26037 requirements</div>
+        </div>
+
+        <table class="landscape-table">
+            <thead>
+                <tr>
+                    <th class="res-col">Research / Resource</th>
+                    <th class="cap-col">Established Literature Capability</th>
+                    <th class="lim-col">Remaining Limitation for PS26037</th>
+                    <th class="resp-col">Our Integrated Engineering Response</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="res-title">
+                            <a href="https://idd.insaan.iiit.ac.in/" target="_blank" rel="noopener">IDD / IDD-3D</a>
+                        </div>
+                        <span class="res-sub">Varma et al. (WACV '19) · Dokania ('23)</span>
+                    </td>
+                    <td>Documents unstructured Indian road scenes, heterogeneous vehicle classes, and drivable-area semantic segmentation.</td>
+                    <td>Establishes the perception problem benchmark; it is an open-loop dataset, not a closed-loop motion planner.</td>
+                    <td class="resp-col">
+                        <strong class="resp-header">Free-Space Planning:</strong> Converts observed drivable space into analytical bounds <span class="resp-highlight">[ymin(x), ymax(x)]</span> rather than assuming a painted centerline.
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="res-title">
+                            <a href="https://doi.org/10.1109/TIV.2022.3211579" target="_blank" rel="noopener">Lane-Free Planning</a>
+                        </div>
+                        <span class="res-sub">Troullinos, Papageorgiou et al. (IEEE T-IV '23)</span>
+                    </td>
+                    <td>Uses continuous lateral road space and optimal control for vehicle nudging in lane-free automated traffic.</td>
+                    <td>Assumes 100% cooperative connected automated vehicles (CAVs); fails under erratic non-connected cattle and pedestrians.</td>
+                    <td class="resp-col">
+                        <strong class="resp-header">Interaction-Aware Adaptation:</strong> Explicit <span class="resp-highlight">FOLLOW / YIELD / OVERTAKE</span> state machine gating dynamic corridor topologies.
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="res-title">
+                            <a href="https://doi.org/10.1109/TCST.2007.894653" target="_blank" rel="noopener">LTV / QP-MPC</a>
+                        </div>
+                        <span class="res-sub">Falcone et al. (IEEE TCST '07) · Borrelli ('17)</span>
+                    </td>
+                    <td>Provides predictive constrained trajectory and steering optimization suitable for real-time vehicle dynamics.</td>
+                    <td>Requires structured reference pathways and convex boundaries supplied by the external planning stack.</td>
+                    <td class="resp-col">
+                        <strong class="resp-header">Corridor QP-MPC:</strong> Solves 50 Hz condensed Hildreth QP directly within uncertainty-expanded corridors without lane references.
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="res-title">
+                            <a href="https://doi.org/10.1609/aaai.v32i1.11797" target="_blank" rel="noopener">Runtime Shielding</a>
+                        </div>
+                        <span class="res-sub">Alshiekh et al. (AAAI '18) · Gottschalk ('96)</span>
+                    </td>
+                    <td>Separates nominal task optimization from an independent, formal safety-monitoring and override mechanism.</td>
+                    <td>General algorithmic principle; vehicle footprint geometry and emergency braking policies must be specifically engineered.</td>
+                    <td class="resp-col">
+                        <strong class="resp-header">Independent OBB/SAT Veto:</strong> Exact 2D Oriented Bounding Box geometric collision check overriding MPC with controlled safe stopping.
+                    </td>
+                </tr>
+            </tbody>
         </table>
+    </section>
 
-        <div class="caveat-box" style="margin-top: 4px;">
-          <strong>Scientific Rigor:</strong> Data reflects the specific 10-trial Monte Carlo uncertainty experiment. We report these empirical findings without generalizing to an unconditional formal safety guarantee.
-        </div>
-      </div>
-    </div>
-  </section>
+    <!-- =====================================================
+         4. LOWER THREE-PANEL AREA
+         ====================================================== -->
+    <section class="lower-grid">
 
-  <!-- ========================================================================= -->
-  <!-- SLIDE 4: RESULTS / FEASIBILITY                                            -->
-  <!-- ========================================================================= -->
-  <section class="slide" id="slide4">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Closed-Loop Simulation Evidence &amp; Performance KPIs</h2>
-        <div class="slide-subtitle">Multi-Scenario Benchmarking: Velocity Profiling, Actuator Conditioning, and Robustness Limits</div>
-      </div>
-      <div class="slide-category-tag">EMPIRICAL VALIDATION &bull; SLIDE 4 / 6</div>
-    </div>
+        <!-- PANEL 1: GAP TABLE -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-tag">Remaining Engineering Gap</div>
+                <h2 class="panel-title">What Changes When the Lane Fails?</h2>
+            </div>
 
-    <div class="slide-content" style="grid-template-rows: auto 1fr;">
-      <!-- Top Row: KPI Metric Cards -->
-      <div class="kpi-metric-row">
-        <div class="kpi-card">
-          <span class="kpi-value blue">4.22 ms</span>
-          <span class="kpi-label">Mean QP Solve Latency</span>
-          <span class="kpi-sub">P95: 8.27 ms &bull; Budget: &le;20 ms</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-value green">300 / 300</span>
-          <span class="kpi-label">Dynamic Trial Safety</span>
-          <span class="kpi-sub">Nominal &amp; perception noise cases</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-value purple">81.4%</span>
-          <span class="kpi-label">Matched RMSE Reduction</span>
-          <span class="kpi-sub">Chicane: 289.3 cm &rarr; 53.7 cm</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-value amber">860 / 1000</span>
-          <span class="kpi-label">Robustness Benchmark Pass</span>
-          <span class="kpi-sub">86.0% Pass &bull; Known limits disclosed</span>
-        </div>
-      </div>
-
-      <!-- Bottom Row: 3 Figure Comparison Cards -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; min-height: 0;">
-        <!-- Card 1: Chicane Trajectory Comparison -->
-        <div class="tech-card" style="padding: 12px; gap: 8px;">
-          <div class="card-title">
-            <span>CHICANE STRESS TEST (R=18.5m)</span>
-            <span class="tag tag-green">CONFIG B PROVEN</span>
-          </div>
-          <div class="image-wrapper" style="height: 180px;" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_proposal_trajectory_comparison.png')">
-            <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_proposal_trajectory_comparison.png" 
-                 onerror="this.onerror=null; this.src='assets/fig_proposal_trajectory_comparison.png';"
-                 alt="Chicane Trajectory Comparison">
-          </div>
-          <div style="font-size: 11px; line-height: 1.4; color: var(--text-muted);">
-            <strong style="color: #ffffff;">Matched-Distance Tracking RMSE (x &le; 65.27m):</strong><br>
-            &bull; Config A (Baseline): <span class="mono" style="color: var(--crimson-alert);">289.32 cm</span> (Failed at 65.3m)<br>
-            &bull; Config B (+Velocity): <span class="mono" style="color: var(--emerald-green); font-weight: 700;">53.70 cm (-81.4% RMSE)</span><br>
-            &bull; Config B Completed: <span class="mono" style="color: var(--emerald-green); font-weight: 700;">100.19m / 100.2m (100%)</span>
-          </div>
+            <table class="gap-table">
+                <thead>
+                    <tr>
+                        <th style="width:28%">Conventional Assumption</th>
+                        <th style="width:34%">PS26037 Reality</th>
+                        <th style="width:38%">Our Engineering Response</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><b>Lane Centerline Exists</b></td>
+                        <td>Lane markings missing, eroded, or ambiguous in &gt;40% of scenes.</td>
+                        <td class="response-cell"><b>Dynamic Free-Space Corridor:</b> Continuous bounds [y<sub>min</sub>(x), y<sub>max</sub>(x)].</td>
+                    </tr>
+                    <tr>
+                        <td><b>Predictable Agents</b></td>
+                        <td>Sudden cut-ins, informal merging, pedestrians &amp; livestock.</td>
+                        <td class="response-cell"><b>Uncertainty Expansion:</b> Lateral corridor inflation (±2σ<sub>v</sub>τ).</td>
+                    </tr>
+                    <tr>
+                        <td><b>Planner Output Trusted</b></td>
+                        <td>Optimization can become infeasible or geometrically unsafe.</td>
+                        <td class="response-cell"><b>Independent Safety Veto:</b> OBB/SAT kinematic shield + safe stop.</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
-        <!-- Card 2: Anticipatory Velocity Pre-braking -->
-        <div class="tech-card" style="padding: 12px; gap: 8px;">
-          <div class="card-title">
-            <span>CURVATURE-AWARE SPEED PROFILING</span>
-            <span class="tag tag-blue">a_lat &le; 2.5 m/s&sup2;</span>
-          </div>
-          <div class="image-wrapper" style="height: 180px;" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_curvature_velocity_profile.png')">
-            <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_curvature_velocity_profile.png" 
-                 onerror="this.onerror=null; this.src='assets/fig_curvature_velocity_profile.png';"
-                 alt="Curvature Velocity Profile">
-          </div>
-          <div style="font-size: 11px; line-height: 1.4; color: var(--text-muted);">
-            <strong style="color: #ffffff;">Menger Curvature &amp; Pre-Braking:</strong><br>
-            &bull; Reference Profile: <span class="mono">max(v&sup2; &bull; &kappa;) = 2.500 m/s&sup2;</span><br>
-            &bull; Pre-brakes from 10.0 m/s to 6.80 m/s before curve apex<br>
-            &bull; Actual closed-loop peak reaches 4.63 m/s&sup2; during dynamic steering feedback transition.
-          </div>
+        <!-- PANEL 2: CLOSED-LOOP FLOW -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-tag">Closed-Loop Integration</div>
+                <h2 class="panel-title">One Unified Engineering Pipeline</h2>
+            </div>
+
+            <div class="flow-list">
+                <div class="flow-item">
+                    <div class="flow-badge">1</div>
+                    <div class="flow-content"><strong>Observed Agents:</strong> Tracked state vector + noise/latency perturbations<span class="dim">(ObservationModel.m)</span></div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-badge">2</div>
+                    <div class="flow-content"><strong>Free Space:</strong> Dynamic lateral bounds without painted lane centerline<span class="dim">(FreeSpaceMap.m)</span></div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-badge">3</div>
+                    <div class="flow-content"><strong>Prediction + Uncertainty:</strong> Short-horizon envelopes inflated by velocity variance (±2σ<sub>v</sub>τ)<span class="dim">(UncertaintyPredictor.m)</span></div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-badge gold-badge">4</div>
+                    <div class="flow-content"><strong>Behavioral Intent:</strong> Deterministic state machine: MAINTAIN · FOLLOW · YIELD · OVERTAKE</div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-badge">5</div>
+                    <div class="flow-content"><strong>CA-CRC + QP-MPC:</strong> Topology evaluation (J<sub>left</sub> vs J<sub>right</sub>) &amp; 50 Hz Hildreth trajectory QP</div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-badge">6</div>
+                    <div class="flow-content"><strong>OBB/SAT Safety Veto:</strong> Exact polygonal footprint check overriding unsafe commands<span class="dim">(SafetyFilter.m)</span></div>
+                </div>
+            </div>
+
+            <div class="key-integration-box">
+                <strong>Key Architectural Novelty:</strong> Uncertainty is injected directly into the <strong>planning constraints</strong> ([y<sub>min</sub>(k) ≤ y(k) ≤ y<sub>max</sub>(k)]), not treated merely as a post-processing check.
+            </div>
         </div>
 
-        <!-- Card 3: Steering Conditioning & Limitations -->
-        <div class="tech-card" style="padding: 12px; gap: 8px;">
-          <div class="card-title">
-            <span>STEERING STABILIZATION &amp; LIMITS</span>
-            <span class="tag tag-purple">CATTLE: -50% CHATTER</span>
-          </div>
-          <div class="image-wrapper" style="height: 180px;" onclick="openModal('https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_steering_chatter_comparison.png')">
-            <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/fig_steering_chatter_comparison.png" 
-                 onerror="this.onerror=null; this.src='assets/fig_steering_chatter_comparison.png';"
-                 alt="Steering Chatter Comparison">
-          </div>
-          <div style="font-size: 11px; line-height: 1.4; color: var(--text-muted);">
-            <strong style="color: #ffffff;">Actuator Filtering Trade-Offs:</strong><br>
-            &bull; Dynamic Cattle: Reversals cut 6 &rarr; 3 (-50%), effort -42.6%<br>
-            &bull; Straight Bottleneck: Deadband produces 11 reversals (hunting)<br>
-            &bull; High-Speed Chicane: Slew rate limit causes phase lag at 10 m/s, prompting safe stop at 65.5m (Config C limitation).
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+        <!-- PANEL 3: DATA & VALIDATION -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-tag">Empirical Boundaries</div>
+                <h2 class="panel-title">Data Resources &amp; Validation Roadmap</h2>
+            </div>
 
-  <!-- ========================================================================= -->
-  <!-- SLIDE 5: IMPACT + VALIDATION ROADMAP                                      -->
-  <!-- ========================================================================= -->
-  <section class="slide" id="slide5">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Designed for Indian Mixed-Traffic Conditions &amp; Maturity Roadmap</h2>
-        <div class="slide-subtitle">Bridging Model-in-the-Loop Simulation to RoadRunner, Sensor Fusion, and Full-Scale Autonomy</div>
-      </div>
-      <div class="slide-category-tag">ENGINEERING IMPACT &bull; SLIDE 5 / 6</div>
-    </div>
+            <div class="val-stages">
+                <div class="val-stage-card">
+                    <div class="val-stage-top">
+                        <span class="val-stage-name"><a href="https://idd.insaan.iiit.ac.in/" target="_blank" rel="noopener">IDD / IDD-3D Dataset</a></span>
+                        <span class="val-status-pill pill-target">Target Resource</span>
+                    </div>
+                    <div class="val-stage-desc">Indian driving dataset providing empirical problem proof; identified as the benchmark for Stage 2 perception. Not used for training in current MIL.</div>
+                </div>
 
-    <div class="slide-content grid-2col">
-      <!-- Left Column: 5 Target Scenarios & Engineering Benefits -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 10px;">
-        <div class="card-title">
-          <span>5 TARGET INDIAN SCENARIO CLASSES</span>
-          <span class="tag tag-amber">OPERATIONAL DOMAIN</span>
-        </div>
+                <div class="val-stage-card">
+                    <div class="val-stage-top">
+                        <span class="val-stage-name">MATLAB / Simulink MIL</span>
+                        <span class="val-status-pill pill-current">Current Phase</span>
+                    </div>
+                    <div class="val-stage-desc">Closed-loop algorithmic validation with modeled bicycle dynamics, 50-run Monte Carlo seeds, and analytical perception noise.</div>
+                </div>
 
-        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11.5px;">
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span><strong>1. Unmarked Village Road:</strong> Narrow width, eroded edges, no lane markings</span>
-            <span class="tag tag-green">VALIDATED</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span><strong>2. Unsignalized Urban Intersection:</strong> Informal merges, non-cooperative flow</span>
-            <span class="tag tag-blue">PROPOSED</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span><strong>3. Highway Merge with Slow Vehicles:</strong> Tractors, 3-wheelers entering lane</span>
-            <span class="tag tag-blue">PROPOSED</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span><strong>4. Dense Market / Mixed Traffic:</strong> Heavy pedestrian &amp; two-wheeler density</span>
-            <span class="tag tag-green">VALIDATED</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span><strong>5. Sudden Cattle Crossing:</strong> Lateral animal crossing, speed reduction &amp; safe yield</span>
-            <span class="tag tag-green">VALIDATED</span>
-          </div>
+                <div class="val-stage-card">
+                    <div class="val-stage-top">
+                        <span class="val-stage-name"><a href="https://www.mathworks.com/products/roadrunner.html" target="_blank" rel="noopener">MathWorks RoadRunner</a></span>
+                        <span class="val-status-pill pill-next">Next Stage</span>
+                    </div>
+                    <div class="val-stage-desc">3D Indian road scenario authoring and multi-agent co-simulation; MATLAB interface hooks exist; full 3D scenes staged for next phase.</div>
+                </div>
+
+                <div class="val-stage-card">
+                    <div class="val-stage-top">
+                        <span class="val-stage-name">Embedded HIL / ROS 2</span>
+                        <span class="val-status-pill pill-next">Next Stage</span>
+                    </div>
+                    <div class="val-stage-desc">Cross-validated with C++/OSQP testbed (<code style="font-family:var(--font-mono);font-size:9px;">roboracer_ws</code>); real-time hardware deployment remains subsequent work.</div>
+                </div>
+            </div>
+
+            <div class="val-guardrail-box">
+                <b>Validation Guardrail:</b> Experimental claims are strictly confined to controlled MATLAB MIL simulations. Physical vehicle deployment and population-level accident reduction are not claimed.
+            </div>
         </div>
 
-        <div class="card-title" style="margin-top: 8px;">
-          <span>CORE ENGINEERING BENEFITS</span>
-        </div>
-        <ul style="font-size: 11px; color: var(--text-muted); line-height: 1.5; padding-left: 18px;">
-          <li><strong>Infrastructure Independence:</strong> Does not require painted lane lines or expensive HD map maintenance.</li>
-          <li><strong>Heterogeneous Traffic Support:</strong> Dynamic bounding boxes represent vehicles, pushcarts, and animals uniformly.</li>
-          <li><strong>Fail-Safe Graceful Degradation:</strong> Non-traversable narrow gaps (&lt; 1.6m) trigger early controlled standstill.</li>
-          <li><strong>Empirical Latency Envelope:</strong> Safe up to 160 ms perception delay; early stop triggered at 300 ms.</li>
-        </ul>
-      </div>
+    </section>
 
-      <!-- Right Column: Validation Maturity Matrix & Known Limitations -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 10px;">
-        <div class="card-title">
-          <span>VALIDATION MATURITY MATRIX</span>
-          <span class="tag tag-blue">CURRENT VS ROADMAP</span>
+    <!-- =====================================================
+         5. SELECTED REFERENCES TABLE
+         ====================================================== -->
+    <section class="ref-wrapper">
+        <div class="ref-header">
+            <div class="section-label">Selected Authoritative Literature &amp; Technical Standards</div>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--color-ink-muted);">Directly supports problem validity, algorithmic lineage, and safety filtering</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); padding: 10px; border-radius: 6px;">
-            <strong style="color: var(--emerald-green); font-size: 11px; display: block; margin-bottom: 6px;">CURRENTLY VALIDATED (MIL)</strong>
-            &bull; MATLAB / Simulink closed-loop MIL<br>
-            &bull; 300/300 collision-free dynamic trials<br>
-            &bull; 1,000-run Monte Carlo robustness suite<br>
-            &bull; 2.0m bottleneck passage (+0.10m clearance)<br>
-            &bull; Dynamic cattle yield (+3.73m clearance)<br>
-            &bull; Subscale F1TENTH controller execution
-          </div>
-          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px; border-radius: 6px;">
-            <strong style="color: var(--cyan-primary); font-size: 11px; display: block; margin-bottom: 6px;">NEXT VALIDATION STAGE</strong>
-            &bull; RoadRunner 3D scene co-simulation<br>
-            &bull; Synthetic Camera / LiDAR sensor models<br>
-            &bull; Multi-sensor EKF / UKF fusion<br>
-            &bull; Online steering-bias estimation observer<br>
-            &bull; C++ embedded code gen / HIL timing<br>
-            &bull; Full-scale physical vehicle proving ground
-          </div>
+        <table class="ref-table">
+            <thead>
+                <tr>
+                    <th style="width:45px;text-align:center;">Ref</th>
+                    <th style="width:37%;">Publication &amp; Authors</th>
+                    <th style="width:17%;">Venue &amp; Year</th>
+                    <th style="width:30%;">Supported Architectural Claim</th>
+                    <th style="width:13%;text-align:right;">DOI / Access</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="ref-tag-col">[1]</td>
+                    <td class="ref-title-col"><strong>Varma et al.</strong> “IDD: A Dataset for Exploring Problems of Autonomous Navigation in Unconstrained Environments”</td>
+                    <td class="ref-venue-col"><em>IEEE/CVF WACV</em>, 2019</td>
+                    <td class="ref-claim-col"><strong>Problem Evidence:</strong> Unstructured Indian road scenes, non-lane boundaries &amp; 34 classes</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://doi.org/10.1109/WACV.2019.00190" target="_blank" rel="noopener">10.1109/WACV.2019.00190</a></td>
+                </tr>
+                <tr>
+                    <td class="ref-tag-col">[2]</td>
+                    <td class="ref-title-col"><strong>Troullinos et al.</strong> “Optimal Trajectory Planning for Connected &amp; Automated Vehicles in Lane-Free Traffic”</td>
+                    <td class="ref-venue-col"><em>IEEE Trans. Intell. Veh.</em>, 2023</td>
+                    <td class="ref-claim-col"><strong>Lane-Free Paradigm:</strong> Continuous lateral road allocation &amp; vehicle nudging</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://doi.org/10.1109/TIV.2022.3211579" target="_blank" rel="noopener">10.1109/TIV.2022.3211579</a></td>
+                </tr>
+                <tr>
+                    <td class="ref-tag-col">[3]</td>
+                    <td class="ref-title-col"><strong>Falcone et al.</strong> “Predictive Active Steering Control for Autonomous Vehicles on Slick Surfaces”</td>
+                    <td class="ref-venue-col"><em>IEEE Trans. Control Syst. Technol.</em>, 2007</td>
+                    <td class="ref-claim-col"><strong>Optimal Control:</strong> LTV-MPC predictive steering &amp; active constraint handling</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://doi.org/10.1109/TCST.2007.894653" target="_blank" rel="noopener">10.1109/TCST.2007.894653</a></td>
+                </tr>
+                <tr>
+                    <td class="ref-tag-col">[4]</td>
+                    <td class="ref-title-col"><strong>Polack et al.</strong> “The Kinematic Bicycle Model: A Consistent Model for Feasible Trajectories?”</td>
+                    <td class="ref-venue-col"><em>IEEE Intelligent Vehicles (IV)</em>, 2017</td>
+                    <td class="ref-claim-col"><strong>Vehicle Kinematics:</strong> Dynamic validity of kinematic bicycle model at operational speeds</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://doi.org/10.1109/IVS.2017.7995816" target="_blank" rel="noopener">10.1109/IVS.2017.7995816</a></td>
+                </tr>
+                <tr>
+                    <td class="ref-tag-col">[5]</td>
+                    <td class="ref-title-col"><strong>Dokania et al.</strong> “IDD-3D: Indian Driving Dataset for 3D Unstructured Road Scenes”</td>
+                    <td class="ref-venue-col"><em>IEEE/CVF WACV</em>, 2023</td>
+                    <td class="ref-claim-col"><strong>3D Perception Target:</strong> Multi-modal 3D bounding box benchmark for Indian traffic</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://openaccess.thecvf.com/content/WACV2023/html/Dokania_IDD-3D_Indian_Driving_Dataset_for_3D_Unstructured_Road_Scenes_WACV_2023_paper.html" target="_blank" rel="noopener">WACV OpenAccess</a></td>
+                </tr>
+                <tr>
+                    <td class="ref-tag-col">[6]</td>
+                    <td class="ref-title-col"><strong>Alshiekh et al.</strong> “Safe Reinforcement Learning via Shielding”</td>
+                    <td class="ref-venue-col"><em>AAAI Conf. on Artificial Intelligence</em>, 2018</td>
+                    <td class="ref-claim-col"><strong>Runtime Safety:</strong> Independent safety shielding overriding unfeasible optimizer outputs</td>
+                    <td class="ref-doi-col"><a class="ref-doi-link" href="https://doi.org/10.1609/aaai.v32i1.11797" target="_blank" rel="noopener">10.1609/aaai.v32i1.11797</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- =====================================================
+         6. FOOTER
+         ====================================================== -->
+    <footer class="footer">
+        <div class="footer-left">
+            SIH 2026 · Problem Statement 26037 · <strong>Research Grounding &amp; Engineering Lineage</strong> · Pakka Deploy Hoga
         </div>
-
-        <div class="card-title" style="margin-top: 8px;">
-          <span>TRANSPARENT DISCLOSURE OF KNOWN LIMITATIONS</span>
-          <span class="tag tag-amber">NO HIDDEN DEFECTS</span>
+        <div class="footer-right">
+            Verification: MATLAB R2024b MIL · Purely Algorithmic Evidence Stated Explicitly
         </div>
+    </footer>
 
-        <div class="caveat-box" style="margin-top: 0; font-size: 10.5px;">
-          <strong>Documented Engineering Boundaries:</strong><br>
-          1. <em>Unmodelled Steering Bias:</em> Causes 40 collisions in Level 3 under +0.02 rad bias &rarr; Requires online bias estimator.<br>
-          2. <em>Tight-Road Overtaking:</em> Causes 100 boundary violations in Level 6 &rarr; Requires dynamic gap abort thresholds.<br>
-          3. <em>Steering Filter Slew:</em> Slew constraint (0.5 rad/s) induces phase lag in high-speed chicane &rarr; Requires speed-scheduled slew limits.<br>
-          4. <em>Multi-Step Prediction:</em> Handled via corridor envelopes, not yet consumed directly inside MPC cost matrices.<br>
-          5. <em>Physical Deployment:</em> No full-scale real-world driving claims made; MATLAB MIL validated only.
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- SLIDE 6: RESEARCH / REFERENCES / DEMO                                     -->
-  <!-- ========================================================================= -->
-  <section class="slide" id="slide6">
-    <div class="slide-header">
-      <div class="slide-title-group">
-        <h2>Research Foundation, Unified Contribution &amp; Codebase Access</h2>
-        <div class="slide-subtitle">Academic Literature Grounding and Reproducible Open-Source SIH 2026 Artifacts</div>
-      </div>
-      <div class="slide-category-tag">REFERENCES &amp; DEMO &bull; SLIDE 6 / 6</div>
-    </div>
-
-    <div class="slide-content grid-left-heavy">
-      <!-- Left Column: Academic Literature Citations -->
-      <div class="tech-card" style="justify-content: flex-start; gap: 10px;">
-        <div class="card-title">
-          <span>PEER-REVIEWED THEORETICAL FOUNDATIONS</span>
-          <span class="tag tag-blue">6 CORE CITATIONS</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
-            <strong style="color: #ffffff;">[1] Varma et al. (2019)</strong> &bull; <em>IDD: A Dataset for Exploring Problems of Autonomous Navigation in Unconstrained Environments</em> &bull; IEEE WACV.
-            <p style="color: var(--text-dim); margin-top: 2px;">Grounds the visual and structural taxonomy of unstructured Indian driving conditions.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #6366f1;">
-            <strong style="color: #ffffff;">[2] Polack et al. (2017)</strong> &bull; <em>The Kinematic Bicycle Model: A Consistent Model for Planning Feasible Trajectories?</em> &bull; IEEE IV.
-            <p style="color: var(--text-dim); margin-top: 2px;">Provides the mathematical justification for kinematic bicycle modeling in prediction &amp; control.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #10b981;">
-            <strong style="color: #ffffff;">[3] Borrelli, Bemporad, Morari (2017)</strong> &bull; <em>Predictive Control for Linear and Hybrid Systems</em> &bull; Cambridge University Press.
-            <p style="color: var(--text-dim); margin-top: 2px;">Theoretical basis for constrained receding-horizon QP optimization and state space formulation.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #f59e0b;">
-            <strong style="color: #ffffff;">[4] Hildreth (1957)</strong> &bull; <em>A Quadratic Programming Procedure</em> &bull; Naval Research Logistics Quarterly.
-            <p style="color: var(--text-dim); margin-top: 2px;">Algorithm underlying the embedded dual active-set QP solver deployed in our planner.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #ec4899;">
-            <strong style="color: #ffffff;">[5] Werling et al. (2010)</strong> &bull; <em>Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame</em> &bull; IEEE ICRA.
-            <p style="color: var(--text-dim); margin-top: 2px;">Foundation for spatial-temporal decoupling and curvature-bounded velocity profiles.</p>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #ef4444;">
-            <strong style="color: #ffffff;">[6] Ames et al. (2019)</strong> &bull; <em>Control Barrier Functions: Theory and Applications</em> &bull; IEEE ECC.
-            <p style="color: var(--text-dim); margin-top: 2px;">Conceptual reference for safety filtering (*Our implementation uses an independent OBB/SAT geometric veto, not CBF).</p>
-          </div>
-        </div>
-
-        <div class="success-box" style="margin-top: auto;">
-          <strong>Unified Research Contribution:</strong><br>
-          <em>"Risk-aware free-space planning + uncertainty-expanded dynamic corridors + topology-aware behavior selection + curvature-aware velocity planning + delay-aware trajectory tracking."</em>
-        </div>
-      </div>
-
-      <!-- Right Column: GitHub Repository & Demo Access -->
-      <div class="tech-card" style="align-items: center; justify-content: center; text-align: center; gap: 14px;">
-        <div class="card-title" style="width: 100%;">
-          <span>PROJECT REPRODUCIBILITY &amp; DEMO</span>
-          <span class="tag tag-green">OPEN CODEBASE</span>
-        </div>
-
-        <div style="background: #ffffff; padding: 12px; border-radius: 10px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); display: inline-block;">
-          <img src="https://raw.githubusercontent.com/wavexnani/SIH-2026/main/presentation/assets/github_qr.png" 
-               onerror="this.onerror=null; this.src='assets/github_qr.png';"
-               alt="GitHub QR Code" style="width: 150px; height: 150px; display: block;">
-        </div>
-
-        <div>
-          <a href="https://github.com/wavexnani/SIH-2026" target="_blank" 
-             style="color: var(--cyan-primary); text-decoration: none; font-size: 15px; font-weight: 800; font-family: var(--font-mono);">
-            github.com/wavexnani/SIH-2026
-          </a>
-          <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-            Branch: <code style="color: #ffffff; font-family: var(--font-mono);">main</code> &bull; Verified Commit: <code style="color: #ffffff; font-family: var(--font-mono);">fd851ff</code>
-          </p>
-        </div>
-
-        <div style="width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; text-align: left;">
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #ffffff;">Simulink Model:</strong><br>
-            <span class="mono" style="color: var(--cyan-primary);">SIH26037_SupervisoryArchitecture.slx</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #ffffff;">A/B Benchmark Matrix:</strong><br>
-            <span class="mono" style="color: var(--cyan-primary);">tests/run_proposal_ab_benchmark.m</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #ffffff;">Curvature Planner:</strong><br>
-            <span class="mono" style="color: var(--cyan-primary);">planning/CurvatureVelocityPlanner.m</span>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.4); padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #ffffff;">Steering Filter:</strong><br>
-            <span class="mono" style="color: var(--cyan-primary);">planning/DelayAwareSteeringFilter.m</span>
-          </div>
-        </div>
-
-        <div style="font-size: 11px; color: var(--text-dim); margin-top: auto;">
-          Smart India Hackathon 2026 &bull; Problem Statement 26037 &bull; Final Submission Deck
-        </div>
-      </div>
-    </div>
-  </section>
-
-</main>
-
-<!-- Presentation Footer Controls -->
-<footer>
-  <div class="footer-nav">
-    <button class="nav-btn" onclick="prevSlide()">&#9664; Previous</button>
-    <div class="slide-dots">
-      <button class="dot-btn active" onclick="goToSlide(1)">1</button>
-      <button class="dot-btn" onclick="goToSlide(2)">2</button>
-      <button class="dot-btn" onclick="goToSlide(3)">3</button>
-      <button class="dot-btn" onclick="goToSlide(4)">4</button>
-      <button class="dot-btn" onclick="goToSlide(5)">5</button>
-      <button class="dot-btn" onclick="goToSlide(6)">6</button>
-    </div>
-    <button class="nav-btn" onclick="nextSlide()">Next &#9654;</button>
-  </div>
-
-  <div class="footer-status">
-    Navigate: <span class="hotkey">&larr;</span> <span class="hotkey">&rarr;</span> <span class="hotkey">Space</span> &bull; Direct: <span class="hotkey">1-6</span> &bull; Fullscreen: <span class="hotkey">F</span>
-  </div>
-
-  <div>
-    <button class="nav-btn" onclick="toggleFullScreen()">&#x26F6; Fullscreen</button>
-  </div>
-</footer>
-
-<!-- Interactive Fullscreen Image Modal -->
-<div id="imageModal" onclick="closeModal()">
-  <button id="imageModalClose" onclick="closeModal()">Close &times;</button>
-  <img id="modalImg" src="" alt="Zoomed Technical Asset">
 </div>
-
-<!-- Presentation Controller Logic -->
-<script>
-  let currentSlide = 1;
-  const totalSlides = 6;
-
-  const slideTitles = [
-    "Slide 1 / 6 — Title & Core Challenge",
-    "Slide 2 / 6 — Proposed Solution Architecture",
-    "Slide 3 / 6 — Technical Approach & Formulations",
-    "Slide 4 / 6 — Closed-Loop Simulation Results",
-    "Slide 5 / 6 — Impact & Validation Maturity",
-    "Slide 6 / 6 — Research References & Demo"
-  ];
-
-  function showSlide(n) {
-    if (n < 1) n = 1;
-    if (n > totalSlides) n = totalSlides;
-    currentSlide = n;
-
-    document.querySelectorAll('.slide').forEach((slide, idx) => {
-      slide.classList.toggle('active', (idx + 1) === currentSlide);
-    });
-
-    document.querySelectorAll('.dot-btn').forEach((btn, idx) => {
-      btn.classList.toggle('active', (idx + 1) === currentSlide);
-    });
-
-    document.getElementById('headerSlideTitle').innerText = slideTitles[currentSlide - 1];
-    document.getElementById('progressBar').style.width = ((currentSlide / totalSlides) * 100) + '%';
-  }
-
-  function nextSlide() {
-    if (currentSlide < totalSlides) {
-      showSlide(currentSlide + 1);
-    }
-  }
-
-  function prevSlide() {
-    if (currentSlide > 1) {
-      showSlide(currentSlide - 1);
-    }
-  }
-
-  function goToSlide(n) {
-    showSlide(n);
-  }
-
-  // Keyboard navigation
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
-      e.preventDefault();
-      nextSlide();
-    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-      e.preventDefault();
-      prevSlide();
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      showSlide(1);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      showSlide(totalSlides);
-    } else if (e.key >= '1' && e.key <= '6') {
-      e.preventDefault();
-      showSlide(parseInt(e.key));
-    } else if (e.key === 'f' || e.key === 'F') {
-      e.preventDefault();
-      toggleFullScreen();
-    } else if (e.key === 'Escape') {
-      closeModal();
-    }
-  });
-
-  // Fullscreen toggle
-  function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn("Fullscreen request error:", err);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-  }
-
-  // Modal Image Zoom
-  function openModal(src) {
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImg');
-    modalImg.src = src;
-    modal.classList.add('active');
-  }
-
-  function closeModal() {
-    document.getElementById('imageModal').classList.remove('active');
-  }
-
-  // Initialize
-  showSlide(1);
-</script>
 
 </body>
 </html>
