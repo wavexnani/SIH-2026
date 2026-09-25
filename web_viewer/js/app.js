@@ -731,9 +731,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const L = (this.data.metadata ? this.data.metadata.vehicle_length : 4.7);
       const W = (this.data.metadata ? this.data.metadata.vehicle_width : 1.8);
 
+      // Ego Local Perception Sensing Window (Forward 50m, Rear 15m, Lateral 6m)
       ctx.save();
       ctx.translate(ego.x * s, ego.y * s);
       ctx.rotate(ego.theta || 0);
+      const fwdRange = 50.0;
+      const rearRange = 15.0;
+      const latRange = 6.0;
+      ctx.fillStyle = 'rgba(88, 166, 255, 0.03)';
+      ctx.strokeStyle = 'rgba(88, 166, 255, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.fillRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
+      ctx.strokeRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
+      ctx.setLineDash([]);
 
       // Ego Body
       ctx.fillStyle = '#58a6ff';
@@ -770,9 +781,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const intent = step.decision ? step.decision.macro_intent : (step.decision_intent || 'UNKNOWN');
       const minTtc = step.risk && step.risk.min_ttc !== undefined ? step.risk.min_ttc.toFixed(2) : '∞';
       const egoV = step.ego ? step.ego.v.toFixed(1) : '0.0';
+      const clr = step.groundTruth && step.groundTruth.min_clearance !== undefined ? step.groundTruth.min_clearance.toFixed(2) : '—';
+      const nObs = (step.observation && step.observation.agents) ? step.observation.agents.length : 0;
+      const nWorld = (step.groundTruth && step.groundTruth.agents) ? step.groundTruth.agents.length : 0;
 
-      ctx.fillText(`Macro-Intent: ${intent}`, 20, this.canvas.height - 40);
-      ctx.fillText(`Ego Speed: ${egoV} m/s | Min TTC: ${minTtc}s`, 20, this.canvas.height - 20);
+      ctx.fillText(`Macro-Intent: ${intent} | Clearance: ${clr}m`, 20, this.canvas.height - 45);
+      ctx.fillText(`Ego Speed: ${egoV} m/s | Min TTC: ${minTtc}s`, 20, this.canvas.height - 28);
+      ctx.fillText(`Observed Agents: ${nObs} in Frame (World Active: ${nWorld})`, 20, this.canvas.height - 11);
       ctx.restore();
     },
 

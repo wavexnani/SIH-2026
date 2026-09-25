@@ -384,10 +384,15 @@ classdef TrafficAgent < handle
                     obj.v = obj.crossing_speed;
                 end
                 
-                if abs(dy_rem) <= 0.20
-                    % Crossing complete! Move beyond shoulder and exit
-                    obj.behavior_state = 'EXITING';
-                    obj.is_active = false;
+                % Check for crossing completion: once reached opposite shoulder, transition to walking or safe exit
+                if abs(dy_rem) <= 0.25
+                    if obj.y >= y_max_r || obj.y <= y_min_r
+                        obj.behavior_state = 'EXITING';
+                        obj.is_active = false;
+                    else
+                        obj.behavior_state = 'WALKING';
+                        obj.direction = 1;
+                    end
                     return;
                 end
                 
@@ -411,6 +416,26 @@ classdef TrafficAgent < handle
                     theta_w = pi;
                 end
                 
+                % Emergent Crossing Decision:
+                % If walking along edge for > 2.0s, decide to cross to opposite shoulder
+                if obj.age > 2.0 && abs(obj.crossing_target_y - obj.y) > 2.5
+                    % Check distance to ego before stepping into crossing
+                    ego_gap = inf;
+                    if ~isempty(ego_state)
+                        ego_gap = hypot(obj.x - ego_state.x, obj.y - ego_state.y);
+                    end
+                    if ego_gap > 12.0 || abs(obj.x - ego_state.x) > 10.0
+                        obj.behavior_state = 'CROSSING';
+                        if obj.y < y_center_r
+                            obj.crossing_target_y = y_max_r + 0.30;
+                        else
+                            obj.crossing_target_y = y_min_r - 0.30;
+                        end
+                        obj.v = obj.crossing_speed;
+                        return;
+                    end
+                end
+                
                 % Lateral correction toward edge
                 dy_edge = y_edge - obj.y;
                 vy = max(-0.2, min(0.2, 0.5 * dy_edge));
@@ -431,9 +456,9 @@ classdef TrafficAgent < handle
                 dy_rem = target_y - obj.y;
                 
                 if abs(dy_rem) <= 0.30
-                    % Finished crossing road corridor
-                    obj.behavior_state = 'EXITING';
-                    obj.is_active = false;
+                    % Finished crossing road corridor -> resume grazing on other side
+                    obj.behavior_state = 'GRAZING';
+                    obj.v = 0.05;
                     return;
                 end
                 
@@ -450,6 +475,25 @@ classdef TrafficAgent < handle
             else
                 % GRAZING near shoulder with very slow subtle wander
                 obj.behavior_state = 'GRAZING';
+                
+                % Emergent crossing decision for grazing cattle after some time
+                if obj.age > 3.0 && abs(obj.crossing_target_y - obj.y) > 2.0
+                    ego_gap = inf;
+                    if ~isempty(ego_state)
+                        ego_gap = hypot(obj.x - ego_state.x, obj.y - ego_state.y);
+                    end
+                    if ego_gap > 15.0
+                        obj.behavior_state = 'CROSSING';
+                        if obj.y < y_center_r
+                            obj.crossing_target_y = y_max_r + 0.35;
+                        else
+                            obj.crossing_target_y = y_min_r - 0.35;
+                        end
+                        obj.v = obj.crossing_speed;
+                        return;
+                    end
+                end
+                
                 vx = 0.03 * cos(obj.age * 0.4);
                 vy = 0.02 * sin(obj.age * 0.3);
                 

@@ -17,6 +17,7 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     addParameter(p, 'traffic_mode', '', @ischar);
     addParameter(p, 'traffic_seed', [], @isnumeric);
     addParameter(p, 'road_type', '', @ischar);
+    addParameter(p, 'density', 'MEDIUM', @ischar);
     parse(p, varargin{:});
     
     scenario_name = p.Results.scenario;
@@ -31,6 +32,7 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     param_traffic_mode = p.Results.traffic_mode;
     param_traffic_seed = p.Results.traffic_seed;
     param_road_type = p.Results.road_type;
+    param_density = p.Results.density;
     
     if ~isempty(unc_mode)
         switch unc_mode
@@ -67,7 +69,7 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     
     % Initialize Config & Environment
     config = SimulationConfig();
-    world = ScenarioDefinitions(scenario_name, config);
+    world = ScenarioDefinitions(scenario_name, config, 'seed', sim_seed, 'density', param_density);
     vehicle = BicycleModel(config);
     
     % Override traffic mode, traffic seed, or road type if passed as parameters
@@ -78,16 +80,25 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     if ~isempty(param_traffic_mode)
         world.traffic_mode = param_traffic_mode;
         if strcmpi(param_traffic_mode, 'stochastic') && isempty(world.traffic_generator)
-            world.traffic_generator = StochasticTrafficGenerator(t_seed, 0.35);
+            world.traffic_generator = StochasticTrafficGenerator(t_seed, 'density', param_density);
         end
     end
     if ~isempty(world.traffic_generator)
         world.traffic_generator.seed = t_seed;
+        world.traffic_generator.configureDensity(param_density);
         world.traffic_generator.reset();
+        world.traffic_generator.populateInitialScene(world.road_geometry, world.ego);
+        world.agents = world.traffic_generator.getLegacyAgentsArray();
+        world.n_agents = length(world.agents);
     end
     if ~isempty(param_road_type)
         world.road_geometry = RoadGeometry(param_road_type, 'road_length', config.road_length, ...
                                            'road_width', config.road_width, 'y_center', config.road_center_y);
+    end
+    
+    % Enforce local perception window in stochastic village traffic
+    if strcmpi(world.traffic_mode, 'stochastic')
+        obs_model.enforce_sensor_range = true;
     end
     
     % Apply gap perturbation if requested
@@ -106,7 +117,8 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     ctrl5 = Stage5CoordinationController(config);
     ctrl5.reset();
     has_curvature = isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0;
-    ctrl5.setOvertakeEnabled(~strcmp(scenario_name, 'multi_vehicle_following') && ~contains(scenario_name, 'curved') && ~has_curvature);
+    is_village = contains(scenario_name, 'village') || contains(scenario_name, 'stochastic');
+    ctrl5.setOvertakeEnabled(~strcmp(scenario_name, 'multi_vehicle_following') && (~has_curvature || is_village));
     
     world.ego.v = v_init_ego;
     dt = config.dt;
@@ -171,6 +183,10 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     history.a_plant = zeros(N_steps, 1);
     history.steering_error = zeros(N_steps, 1);
     history.acceleration_error = zeros(N_steps, 1);
+    
+    % Traffic Ecosystem Telemetry Arrays
+    history.n_world_agents = zeros(N_steps, 1);
+    history.n_observed_agents = zeros(N_steps, 1);
     
     hard_qp_count = 0; soft_qp_count = 0; safety_rejected_count = 0; emergency_braking_count = 0;
     
@@ -244,6 +260,9 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         
         % Pass Ground-Truth World through Perception Observation Pipeline
         [obs_world, obs_structs] = obs_model.observe(world, dt);
+        
+        history.n_world_agents(k) = world.n_agents;
+        history.n_observed_agents(k) = obs_world.n_agents;
         
         % Execute Stage 5 Control Step using Observed World State
         [u_cmd, pred_states, status, info] = ctrl5.step(obs_world, ref_path, v_target_nominal);
@@ -605,14 +624,20 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         metrics.agent_type_counts = world.traffic_generator.getClassCounts();
         metrics.pedestrian_crossings = world.traffic_generator.pedestrian_crossings;
         metrics.cattle_crossings = world.traffic_generator.cattle_crossings;
+        metrics.vehicles_passed_ego = world.traffic_generator.vehicles_passed_ego;
         metrics.deferred_spawns = world.traffic_generator.deferred_spawns;
+        metrics.max_simultaneous_active = max(history.n_world_agents);
+        metrics.max_simultaneous_observed = max(history.n_observed_agents);
     else
         metrics.traffic_count = world.n_agents;
         metrics.active_agent_count = world.n_agents;
         metrics.agent_type_counts = struct('car', world.n_agents, 'bike', 0, 'auto', 0, 'pedestrian', 0, 'cattle', 0);
         metrics.pedestrian_crossings = 0;
         metrics.cattle_crossings = 0;
+        metrics.vehicles_passed_ego = 0;
         metrics.deferred_spawns = 0;
+        metrics.max_simultaneous_active = world.n_agents;
+        metrics.max_simultaneous_observed = world.n_agents;
     end
     metrics.min_ttc = min(history.min_ttc);
     
@@ -673,6 +698,20 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         fprintf('     - Safety Rejections:%6d steps\n', safety_rejected_count);
         fprintf('     - Emergency Braking:%6d steps\n', emergency_braking_count);
         fprintf('  Avg Solve Time:        %6.2f ms/step\n', mean_solve_time);
+        if strcmpi(world.traffic_mode, 'stochastic')
+            fprintf('  Continuous Traffic Ecosystem Metrics:\n');
+            fprintf('     - Max Simultaneous Active (World):  %6d\n', metrics.max_simultaneous_active);
+            fprintf('     - Max Simultaneous Observed (Ego):  %6d\n', metrics.max_simultaneous_observed);
+            fprintf('     - Total Spawned Agents:             %6d\n', metrics.traffic_count);
+            fprintf('     - Cars Spawned:                     %6d\n', metrics.agent_type_counts.car);
+            fprintf('     - Bikes Spawned:                    %6d\n', metrics.agent_type_counts.bike);
+            fprintf('     - Autos Spawned:                    %6d\n', metrics.agent_type_counts.auto);
+            fprintf('     - Pedestrians Spawned:              %6d\n', metrics.agent_type_counts.pedestrian);
+            fprintf('     - Cattle Spawned:                   %6d\n', metrics.agent_type_counts.cattle);
+            fprintf('     - Pedestrian Crossings:             %6d\n', metrics.pedestrian_crossings);
+            fprintf('     - Cattle Crossings:                 %6d\n', metrics.cattle_crossings);
+            fprintf('     - Vehicles Passed Ego:              %6d\n', metrics.vehicles_passed_ego);
+        end
         if emergency_braking_count > 0
             reasons = unique(history.failure_reason(history.solver_status == 0));
             fprintf('  MPC Failure Reasons:   %s\n', strjoin(reasons, ', '));

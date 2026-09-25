@@ -1,11 +1,11 @@
-% RUN_STOCHASTIC_HERO_EXPORT Run and export Stochastic Village Mixed Scenario to JSON for HTML Viewer
+function output_json = run_stochastic_hero_export(varargin)
+% RUN_STOCHASTIC_HERO_EXPORT Run and export Stochastic Village Scenario to JSON for HTML Viewer
 %
-% Scenario: stochastic_village_mixed
+% Scenario: stochastic_village_environment
 % Seed: 42
-% Description: Stochastic Unstructured Village Traffic Environment with heterogeneous
+% Description: Continuous Stochastic Unstructured Village Traffic Environment with heterogeneous
 % road users (cars, bikes, autos, pedestrians, cattle), curves, grades, and potholes.
 
-clear; clc;
 fprintf('====================================================\n');
 fprintf('  SIH26037 — STOCHASTIC VILLAGE TRAFFIC EXPORT     \n');
 fprintf('====================================================\n');
@@ -24,7 +24,7 @@ addpath(fullfile(proj_root, 'scripts'));
 output_json = fullfile(proj_root, 'web_viewer', 'data', 'stochastic_scenario.json');
 
 export_simulation_json(...
-    'scenario', 'stochastic_village_mixed', ...
+    'scenario', 'stochastic_village_environment', ...
     'seed', 42, ...
     'max_steps', 150, ...
     'ego_v', 5.0, ...

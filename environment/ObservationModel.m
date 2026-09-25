@@ -21,6 +21,12 @@ classdef ObservationModel < handle
         
         rng_stream                           % Dedicated random stream object
         history_buffer  cell = {}            % Ground truth state buffer for delay
+        
+        % Local Perception Sensing Window
+        sensor_range_forward double = 50.0   % Forward longitudinal range (m)
+        sensor_range_rear    double = 15.0   % Rear longitudinal range (m)
+        sensor_range_lateral double = 6.0    % Lateral range from centerline (m)
+        enforce_sensor_range logical = false % Flag to enforce local perception window
     end
     
     methods
@@ -275,6 +281,31 @@ classdef ObservationModel < handle
                     
                 otherwise
                     error('Unknown ObservationModel mode: %s', obj.mode);
+            end
+            
+            % Enforce Local Perception Window (Ego-Centered Sensor Range)
+            % Prevents the autonomy stack from receiving information about objects outside sensor range
+            if (obj.enforce_sensor_range || strcmpi(world.traffic_mode, 'stochastic')) && isprop(world, 'ego') && ~isempty(world.ego)
+                ego_x = world.ego.x;
+                ego_y = world.ego.y;
+                n_curr = length(obs_world.agents);
+                keep_mask = false(1, n_curr);
+                for i = 1:n_curr
+                    ag = obs_world.agents(i);
+                    if isempty(ag) || ag.id <= 0, continue; end
+                    dx = ag.x - ego_x;
+                    dy = ag.y - ego_y;
+                    d_rel = hypot(dx, dy);
+                    if (dx >= -obj.sensor_range_rear) && (dx <= obj.sensor_range_forward) && ...
+                       (abs(dy) <= obj.sensor_range_lateral) && (d_rel <= obj.sensor_range_forward)
+                        keep_mask(i) = true;
+                    end
+                end
+                obs_world.agents = obs_world.agents(keep_mask);
+                obs_world.n_agents = length(obs_world.agents);
+                if ~isempty(obs_structs) && length(obs_structs) == n_curr
+                    obs_structs = obs_structs(keep_mask);
+                end
             end
         end
     end

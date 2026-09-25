@@ -1,16 +1,20 @@
-function world = ScenarioDefinitions(scenario_name, cfg)
+function world = ScenarioDefinitions(scenario_name, cfg, varargin)
     % SCENARIODEFINITIONS Create a predefined scenario
     %
     % Stage 0: Define agents and static obstacles
     %
     % Usage:
     %   world = ScenarioDefinitions('simple_oncoming', cfg);
+    %   world = ScenarioDefinitions('stochastic_village_environment', cfg, 'density', 'MEDIUM', 'seed', 42);
     %
     % Scenarios:
-    %   'simple_oncoming':    One agent approaching head-on
-    %   'overtaking':         Agent overtaking from left
-    %   'moderate':           2 agents + 3 obstacles (default)
-    %   'complex':            Multiple agents and obstacles
+    %   'stochastic_village_environment': Unified continuous stochastic village road environment
+    %   'multi_vehicle_yield_overtake': Deterministic Stage 5 benchmark
+    %   'multi_vehicle_following':      Deterministic following benchmark
+    %   'simple_oncoming':              One agent approaching head-on
+    %   'overtaking':                   Agent overtaking from left
+    %   'moderate':                     2 agents + 3 obstacles (default)
+    %   'complex':                      Multiple agents and obstacles
     
     % Initialize world
     world = WorldState(cfg);
@@ -101,29 +105,15 @@ function world = ScenarioDefinitions(scenario_name, cfg)
         case {'sih_hero_visual_proof', 'sih_hero'}
             world = scenario_sih_hero_candidate_A(world, cfg);
             
-        case {'stochastic_heterogeneous_traffic', 'heterogeneous_traffic', 'test_b_heterogeneous'}
-            world = scenario_stochastic_heterogeneous(world, cfg);
-            
-        case {'stochastic_curved_road', 'curved_road', 'test_c_curved'}
-            world = scenario_stochastic_curved(world, cfg);
-            
-        case {'stochastic_grade_road', 'grade_road', 'test_d_grade'}
-            world = scenario_stochastic_grade(world, cfg);
-            
-        case {'stochastic_pothole_road', 'pothole_road', 'test_e_potholes'}
-            world = scenario_stochastic_potholes(world, cfg);
-            
-        case {'stochastic_bidirectional_traffic', 'bidirectional_traffic', 'test_f_bidirectional'}
-            world = scenario_stochastic_bidirectional(world, cfg);
-            
-        case {'stochastic_pedestrian_crossing', 'pedestrian_crossing', 'test_g_pedestrian'}
-            world = scenario_stochastic_pedestrian(world, cfg);
-            
-        case {'stochastic_cattle_crossing', 'test_h_cattle'}
-            world = scenario_stochastic_cattle(world, cfg);
-            
-        case {'stochastic_village_mixed', 'village_mixed', 'test_i_mixed', 'hero_stochastic'}
-            world = scenario_stochastic_village_mixed(world, cfg);
+        case {'stochastic_village_environment', 'stochastic_village', 'village_environment', ...
+              'stochastic_village_traffic', 'hero_stochastic', 'stochastic_village_mixed', ...
+              'stochastic_heterogeneous_traffic', 'stochastic_curved_road', ...
+              'stochastic_grade_road', 'stochastic_pothole_road', ...
+              'stochastic_bidirectional_traffic', 'stochastic_pedestrian_crossing', ...
+              'stochastic_cattle_crossing', 'test_b_heterogeneous', 'test_c_curved', ...
+              'test_d_grade', 'test_e_potholes', 'test_f_bidirectional', ...
+              'test_g_pedestrian', 'test_h_cattle', 'test_i_mixed'}
+            world = scenario_stochastic_village_environment(world, cfg, varargin{:});
             
         otherwise
             warning('Unknown scenario: %s. Using default (moderate)', scenario_name);
@@ -872,98 +862,61 @@ function world = scenario_sih_hero_candidate_D(world, cfg)
 end
 
 % =========================================================================
-% STOCHASTIC UNSTRUCTURED VILLAGE ROAD SCENARIOS
+% UNIFIED STOCHASTIC UNSTRUCTURED VILLAGE ROAD ENVIRONMENT
 % =========================================================================
 
-function world = scenario_stochastic_heterogeneous(world, cfg)
-    % TEST B: Heterogeneous traffic run with all classes
+function world = scenario_stochastic_village_environment(world, cfg, varargin)
+    % SCENARIO_STOCHASTIC_VILLAGE_ENVIRONMENT Unified Continuous Stochastic Village Road
+    %
+    % Integrates:
+    %   - Physical road geometry: analytic curvature (amp=0.60m, lambda=60m), uphill grade (2%), boundary irregularities (0.12m)
+    %   - Physical road defects: multiple potholes with width/length/depth
+    %   - Simultaneous heterogeneous traffic population (cars, bikes, autos, pedestrians, cattle)
+    %   - Initial scene populated at t=0 so multiple road users are immediately visible in local scene
+    %   - Bidirectional flow: same-direction cruising/following, oncoming vehicles in opposing lane
+    %   - Emergent lateral events: pedestrians walking/crossing, cattle grazing/crossing
+    %   - Continuous traffic replenishment & online lifecycle management
+    
+    p = inputParser;
+    addParameter(p, 'seed', 42, @isnumeric);
+    addParameter(p, 'density', 'MEDIUM', @ischar);
+    if nargin > 2
+        parse(p, varargin{:});
+        sim_seed = p.Results.seed;
+        density_val = p.Results.density;
+    else
+        sim_seed = 42;
+        density_val = 'MEDIUM';
+    end
+    
+    % Initialize ego vehicle on right side of village road
     world = world.setEgoState(10.0, 2.0, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length, ...
-                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y);
-    world.traffic_generator = StochasticTrafficGenerator(42, 0.35, ...
-        'class_weights', [0.25, 0.25, 0.20, 0.15, 0.15]);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_curved(world, cfg)
-    % TEST C: Curved village road with stochastic traffic
-    world = world.setEgoState(10.0, 3.0, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('curved', 'road_length', cfg.road_length, ...
-                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
-                                       'curve_amp', 1.0, 'curve_lambda', 80.0);
-    world.traffic_generator = StochasticTrafficGenerator(42, 0.30);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_grade(world, cfg)
-    % TEST D: Longitudinal Grade (Uphill / Downhill)
-    world = world.setEgoState(10.0, 2.0, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('uphill', 'road_length', cfg.road_length, ...
-                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
-                                       'grade_slope', 0.05);
-    world.traffic_generator = StochasticTrafficGenerator(43, 0.30);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_potholes(world, cfg)
-    % TEST E: Road Defects & Potholes
-    world = world.setEgoState(10.0, 2.0, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length, ...
-                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y);
-    world.road_geometry.addPothole(1, 35.0, 2.0, 1.6, 1.2, 0.08, 'moderate');
-    world.road_geometry.addPothole(2, 65.0, 3.8, 1.8, 1.3, 0.10, 'severe');
-    world.road_geometry.addPothole(3, 90.0, 2.2, 1.5, 1.1, 0.07, 'minor');
-    world.potholes = world.road_geometry.potholes;
-    world.traffic_generator = StochasticTrafficGenerator(44, 0.25);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_bidirectional(world, cfg)
-    % TEST F: Dense Bidirectional Traffic
-    world = world.setEgoState(10.0, 1.80, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length);
-    world.traffic_generator = StochasticTrafficGenerator(45, 0.40, ...
-        'class_weights', [0.35, 0.30, 0.25, 0.05, 0.05]);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_pedestrian(world, cfg)
-    % TEST G: Pedestrian Crossing & Walking Environment
-    world = world.setEgoState(10.0, 2.2, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length);
-    world.traffic_generator = StochasticTrafficGenerator(46, 0.50, ...
-        'class_weights', [0.10, 0.10, 0.10, 0.60, 0.10]);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_cattle(world, cfg)
-    % TEST H: Cattle Crossing & Grazing Environment
-    world = world.setEgoState(10.0, 2.2, 0, 5.0);
-    world.traffic_mode = 'stochastic';
-    world.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length);
-    world.traffic_generator = StochasticTrafficGenerator(47, 0.35, ...
-        'class_weights', [0.15, 0.15, 0.15, 0.10, 0.45]);
-    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
-end
-
-function world = scenario_stochastic_village_mixed(world, cfg)
-    % TEST I: Full Mixed Unstructured Village Road Environment
-    world = world.setEgoState(10.0, 3.0, 0, 5.0);
-    world.traffic_mode = 'stochastic';
+    
+    % Road Geometry: Curved, graded unstructured village road
     world.road_geometry = RoadGeometry('unstructured', 'road_length', cfg.road_length, ...
                                        'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
-                                       'curve_amp', 0.70, 'curve_lambda', 80.0, 'grade_slope', 0.03);
-    world.road_geometry.addPothole(1, 40.0, 2.0, 1.6, 1.2, 0.08, 'moderate');
-    world.road_geometry.addPothole(2, 85.0, 3.8, 1.8, 1.4, 0.10, 'severe');
+                                       'curve_amp', 0.60, 'curve_lambda', 60.0, 'grade_slope', 0.02);
+    world.road_geometry.boundary_noise_amp = 0.12;
+    world.road_length = cfg.road_length;
+    world.road_width = cfg.road_width;
+    world.road_center_y = cfg.road_center_y;
+    
+    % Physical Potholes on Road Surface
+    world.road_geometry.addPothole(1, 35.0, 2.3, 1.4, 1.0, 0.08, 'moderate');
+    world.road_geometry.addPothole(2, 65.0, 3.8, 1.6, 1.2, 0.10, 'severe');
+    world.road_geometry.addPothole(3, 95.0, 2.1, 1.2, 0.9, 0.06, 'minor');
     world.potholes = world.road_geometry.potholes;
-    world.traffic_generator = StochasticTrafficGenerator(42, 0.35, ...
+    
+    % Stochastic Traffic Generator
+    world.traffic_mode = 'stochastic';
+    world.traffic_generator = StochasticTrafficGenerator(sim_seed, 'density', density_val, ...
         'class_weights', [0.28, 0.25, 0.22, 0.15, 0.10]);
+    
+    % Populate Initial Scene at t=0 with multiple simultaneous heterogeneous agents
+    world.traffic_generator.populateInitialScene(world.road_geometry, world.ego);
+    world.agents = world.traffic_generator.getLegacyAgentsArray();
+    world.n_agents = length(world.agents);
+    
     for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
 end
 
