@@ -16,6 +16,9 @@ function export_simulation_json(varargin)
     addParameter(p, 'max_steps', 150, @isnumeric);
     addParameter(p, 'ego_v', 5.0, @isnumeric);
     addParameter(p, 'uncertainty_mode', 'ideal', @ischar);
+    addParameter(p, 'traffic_mode', '', @ischar);
+    addParameter(p, 'traffic_seed', [], @isnumeric);
+    addParameter(p, 'road_type', '', @ischar);
     addParameter(p, 'output', '', @ischar);
     parse(p, varargin{:});
     
@@ -24,6 +27,9 @@ function export_simulation_json(varargin)
     max_steps = p.Results.max_steps;
     ego_v = p.Results.ego_v;
     unc_mode = p.Results.uncertainty_mode;
+    traf_mode = p.Results.traffic_mode;
+    traf_seed = p.Results.traffic_seed;
+    r_type = p.Results.road_type;
     output_path = p.Results.output;
     
     if isempty(output_path)
@@ -41,6 +47,7 @@ function export_simulation_json(varargin)
     fprintf('Seed:        %d\n', seed);
     fprintf('Max Steps:   %d\n', max_steps);
     fprintf('Uncertainty: %s\n', unc_mode);
+    if ~isempty(traf_mode), fprintf('Traffic:     %s\n', traf_mode); end
     fprintf('Output:      %s\n\n', output_path);
     
     % Run the actual MATLAB pipeline
@@ -57,6 +64,9 @@ function export_simulation_json(varargin)
         'max_steps', max_steps, ...
         'ego_v', ego_v, ...
         'uncertainty_mode', unc_mode, ...
+        'traffic_mode', traf_mode, ...
+        'traffic_seed', traf_seed, ...
+        'road_type', r_type, ...
         'verbose', true);
     
     % Build export structure

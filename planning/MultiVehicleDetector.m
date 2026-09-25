@@ -15,9 +15,9 @@ classdef MultiVehicleDetector
             % Output:
             %   detections: Array of structs containing relative agent metrics
             
-            detections = struct('id', {}, 'x', {}, 'y', {}, 'vx', {}, 'vy', {}, ...
-                                'v', {}, 'theta', {}, 'dx', {}, 'dy', {}, ...
-                                'd_rel', {}, 'dvx', {}, 'dvy', {}, ...
+            detections = struct('id', {}, 'id_str', {}, 'type', {}, 'x', {}, 'y', {}, 'vx', {}, 'vy', {}, ...
+                                'v', {}, 'theta', {}, 'length', {}, 'width', {}, 'confidence', {}, ...
+                                'dx', {}, 'dy', {}, 'd_rel', {}, 'dvx', {}, 'dvy', {}, ...
                                 'is_ahead', {}, 'is_behind', {}, ...
                                 'is_same_lane', {}, 'is_adjacent_lane', {}, ...
                                 'is_oncoming', {});
@@ -38,6 +38,20 @@ classdef MultiVehicleDetector
                 
                 count = count + 1;
                 det.id = agent.id;
+                if isprop(agent, 'id_str') && ~isempty(agent.id_str)
+                    det.id_str = agent.id_str;
+                else
+                    det.id_str = sprintf('A%d', agent.id);
+                end
+                if isprop(agent, 'type') && ~isempty(agent.type)
+                    det.type = agent.type;
+                else
+                    det.type = 'car';
+                end
+                det.length = agent.length;
+                det.width = agent.width;
+                det.confidence = 1.0;
+                
                 det.x = agent.x;
                 det.y = agent.y;
                 det.vx = agent.vx;
@@ -52,11 +66,12 @@ classdef MultiVehicleDetector
                 det.dvx = agent.vx - ego_vx;
                 det.dvy = agent.vy - ego_vy;
                 
-                % Spatial indicators
+                % Spatial indicators (accounting for vehicle / object width)
                 det.is_ahead = (det.dx > 0);
                 det.is_behind = (det.dx < 0);
-                det.is_same_lane = (abs(det.dy) <= 1.2); % Within vehicle footprint collision path
-                det.is_adjacent_lane = (abs(det.dy) > 1.2 && abs(det.dy) <= 3.6);
+                lane_tol = max(1.2, det.width / 2.0 + 0.3);
+                det.is_same_lane = (abs(det.dy) <= lane_tol);
+                det.is_adjacent_lane = (abs(det.dy) > lane_tol && abs(det.dy) <= 3.6);
                 
                 % Heading orientation indicator
                 det.is_oncoming = (cos(det.theta - ego_th) < -0.7);
@@ -72,6 +87,12 @@ classdef MultiVehicleDetector
                     
                     count = count + 1;
                     det.id = 1000 + j;
+                    det.id_str = sprintf('OBS_%d', j);
+                    det.type = 'static_obstacle';
+                    det.length = obs(3);
+                    det.width = obs(4);
+                    det.confidence = 1.0;
+                    
                     det.x = obs(1);
                     det.y = obs(2);
                     det.vx = 0.0;
@@ -82,6 +103,44 @@ classdef MultiVehicleDetector
                     det.dx = obs(1) - ego_x;
                     det.dy = obs(2) - ego_y;
                     det.d_rel = hypot(det.dx, det.dy);
+                    det.dvx = 0.0 - ego_vx;
+                    det.dvy = 0.0 - ego_vy;
+                    
+                    det.is_ahead = (det.dx > 0);
+                    det.is_behind = (det.dx < 0);
+                    det.is_same_lane = (abs(det.dy) <= 1.2);
+                    det.is_adjacent_lane = (abs(det.dy) > 1.2 && abs(det.dy) <= 3.6);
+                    det.is_oncoming = false;
+                    
+                    detections(count) = det;
+                end
+            end
+            
+            % Process potholes on the road as stationary road defect detections
+            if isprop(world, 'potholes') && ~isempty(world.potholes)
+                for p_i = 1:length(world.potholes)
+                    p = world.potholes(p_i);
+                    d_ego = hypot(p.x - ego_x, p.y - ego_y);
+                    if d_ego > 60.0, continue; end % Sensor range cutoff
+                    
+                    count = count + 1;
+                    det.id = 2000 + p.id;
+                    det.id_str = sprintf('POTHOLE_%d', p.id);
+                    det.type = 'pothole';
+                    det.length = p.length;
+                    det.width = p.width;
+                    det.confidence = 0.90;
+                    
+                    det.x = p.x;
+                    det.y = p.y;
+                    det.vx = 0.0;
+                    det.vy = 0.0;
+                    det.v = 0.0;
+                    det.theta = 0.0;
+                    
+                    det.dx = p.x - ego_x;
+                    det.dy = p.y - ego_y;
+                    det.d_rel = d_ego;
                     det.dvx = 0.0 - ego_vx;
                     det.dvy = 0.0 - ego_vy;
                     

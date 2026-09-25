@@ -35,6 +35,12 @@ classdef WorldState
         road_length     % Total length (m)
         road_width      % Total width (m)
         road_center_y   % Center Y coordinate (m)
+        
+        % Stochastic Traffic Environment & Road Model
+        traffic_mode        char = 'deterministic' % 'deterministic' or 'stochastic'
+        traffic_generator   % StochasticTrafficGenerator instance (if stochastic)
+        road_geometry       % RoadGeometry instance
+        potholes            struct = struct('id', {}, 'x', {}, 'y', {}, 'length', {}, 'width', {}, 'depth', {}, 'severity', {})
     end
     
     methods
@@ -65,6 +71,11 @@ classdef WorldState
             obj.road_length = cfg.road_length;
             obj.road_width = cfg.road_width;
             obj.road_center_y = cfg.road_center_y;
+            
+            % Initialize default road geometry
+            obj.road_geometry = RoadGeometry('straight', 'road_length', cfg.road_length, ...
+                                             'road_width', cfg.road_width, 'y_center', cfg.road_center_y);
+            obj.potholes = struct('id', {}, 'x', {}, 'y', {}, 'length', {}, 'width', {}, 'depth', {}, 'severity', {});
         end
         
         function obj = setEgoState(obj, x, y, theta, v)
@@ -132,22 +143,27 @@ classdef WorldState
         
         function is_in_bounds = isEgoInBounds(obj, cfg)
             % Check if ego vehicle footprint stays within road bounds
-            bounds = obj.getRoadBounds();
-            x_min = bounds(1); x_max = bounds(2);
-            y_min = bounds(3); y_max = bounds(4);
-            
-            % Half dimensions including safety margin
-            half_L = cfg.vehicle_length / 2 + cfg.safety_margin;
-            half_W = cfg.vehicle_width / 2 + cfg.safety_margin;
-            
-            % Oriented bounding box projections along axes
-            r_x = abs(half_L * cos(obj.ego.theta)) + abs(half_W * sin(obj.ego.theta));
-            r_y = abs(half_L * sin(obj.ego.theta)) + abs(half_W * cos(obj.ego.theta));
-            
-            is_in_bounds = (obj.ego.x - r_x > x_min) && ...
-                           (obj.ego.x + r_x < x_max) && ...
-                           (obj.ego.y - r_y > y_min) && ...
-                           (obj.ego.y + r_y < y_max);
+            if ~isempty(obj.road_geometry)
+                is_in_bounds = obj.road_geometry.isFootprintInBounds(obj.ego.x, obj.ego.y, obj.ego.theta, ...
+                                                                    cfg.vehicle_length, cfg.vehicle_width, cfg.safety_margin);
+            else
+                bounds = obj.getRoadBounds();
+                x_min = bounds(1); x_max = bounds(2);
+                y_min = bounds(3); y_max = bounds(4);
+                
+                % Half dimensions including safety margin
+                half_L = cfg.vehicle_length / 2 + cfg.safety_margin;
+                half_W = cfg.vehicle_width / 2 + cfg.safety_margin;
+                
+                % Oriented bounding box projections along axes
+                r_x = abs(half_L * cos(obj.ego.theta)) + abs(half_W * sin(obj.ego.theta));
+                r_y = abs(half_L * sin(obj.ego.theta)) + abs(half_W * cos(obj.ego.theta));
+                
+                is_in_bounds = (obj.ego.x - r_x > x_min) && ...
+                               (obj.ego.x + r_x < x_max) && ...
+                               (obj.ego.y - r_y > y_min) && ...
+                               (obj.ego.y + r_y < y_max);
+            end
         end
         
         function min_clearance = getMinClearance(obj, cfg)
@@ -208,10 +224,15 @@ classdef WorldState
         end
         
         function obj = stepAgents(obj, dt)
-            % Update all agents (DynamicAgent 2nd-order model or constant velocity)
+            % Update all agents (Stochastic generator, DynamicAgent closed-loop, or constant velocity)
             % Input: dt - time step (s)
             
-            if ~isempty(obj.dynamic_agents)
+            if strcmpi(obj.traffic_mode, 'stochastic') && ~isempty(obj.traffic_generator)
+                % Stochastic online traffic evolution
+                obj.traffic_generator.step(dt, obj.t, obj.road_geometry, obj.ego);
+                obj.agents = obj.traffic_generator.getLegacyAgentsArray();
+                obj.n_agents = length(obj.agents);
+            elseif ~isempty(obj.dynamic_agents)
                 for i = 1:length(obj.dynamic_agents)
                     if ~isempty(obj.dynamic_agents(i)) && obj.dynamic_agents(i).id > 0
                         % Closed-loop update for DynamicAgent

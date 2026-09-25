@@ -12,13 +12,21 @@ classdef Agent
     
     properties
         % Identity
-        id              % Agent ID (1, 2, 3, ...)
+        id              % Numeric Agent ID (1, 2, 3, ...)
+        id_str          % String ID ('CAR_001', 'BIKE_002', 'PED_003', etc.)
+        type            % Class type: 'car', 'bike', 'auto', 'pedestrian', 'cattle'
+        behavior_state  % Behavioral state ('CRUISING', 'FOLLOWING', 'CROSSING', 'WALKING', etc.)
+        direction       % Travel direction (+1: forward, -1: oncoming, 0: crossing)
+        entry_source    % Entry region: 'main_ahead', 'main_behind', 'left_edge', 'right_edge'
         
         % State
         x               % Position X (m)
         y               % Position Y (m)
         vx              % Velocity X (m/s)
         vy              % Velocity Y (m/s)
+        v               % Speed magnitude (m/s)
+        heading         % Heading angle (rad)
+        a               % Acceleration (m/s²)
         
         % Uncertainty
         sigma           % Position uncertainty (m)
@@ -27,8 +35,8 @@ classdef Agent
         t               % Current time (s)
         
         % Dimensions (for collision checking)
-        length          % Agent length (assume ~4m like vehicle)
-        width           % Agent width (assume ~2m like vehicle)
+        length          % Agent length (m)
+        width           % Agent width (m)
     end
     
     methods
@@ -37,10 +45,18 @@ classdef Agent
             % Agent(id, x, y, vx, vy) or Agent(id, x, y, vx, vy, sigma)
             
             obj.id = id;
+            obj.id_str = sprintf('A%d', id);
+            obj.type = 'car';
+            obj.behavior_state = 'CRUISING';
+            obj.direction = 1;
+            obj.entry_source = 'main_ahead';
             obj.x = x;
             obj.y = y;
             obj.vx = vx;
             obj.vy = vy;
+            obj.v = hypot(vx, vy);
+            obj.heading = atan2(vy, vx + 1e-6);
+            obj.a = 0;
             
             % Default uncertainty
             if nargin > 5

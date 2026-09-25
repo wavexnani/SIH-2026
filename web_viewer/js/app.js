@@ -36,14 +36,16 @@ document.addEventListener('DOMContentLoaded', () => {
       this.renderFrame();
     },
 
-    async loadData() {
+    async loadData(jsonUrl = 'data/hero_scenario.json') {
       try {
-        const res = await fetch('data/hero_scenario.json');
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        const res = await fetch(jsonUrl);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         this.data = await res.json();
         
         // Hide loading overlay
-        document.getElementById('loading-overlay').style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
 
         this.setupHeader();
         this.detectEvents();
@@ -51,11 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
         this.setStep(0);
       } catch (err) {
         console.error('Failed to load simulation data:', err);
-        document.getElementById('loading-overlay').innerHTML = `
-          <h2 style="color:var(--accent-red)">Failed to load data</h2>
-          <p style="margin-top:8px;color:var(--text-secondary)">Please ensure hero_scenario.json exists in web_viewer/data/</p>
-          <pre style="margin-top:12px;font-size:11px;color:var(--text-muted)">${err.message}</pre>
-        `;
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+          overlay.style.display = 'flex';
+          overlay.innerHTML = `
+            <h2 style="color:var(--accent-red)">Failed to load data</h2>
+            <p style="margin-top:8px;color:var(--text-secondary)">Please ensure ${jsonUrl} exists in web_viewer/data/</p>
+            <pre style="margin-top:12px;font-size:11px;color:var(--text-muted)">${err.message}</pre>
+          `;
+        }
       }
     },
 
@@ -185,6 +191,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
+      const scenSelect = document.getElementById('scenario-select');
+      if (scenSelect) {
+        scenSelect.addEventListener('change', (e) => {
+          this.pause();
+          this.loadData(e.target.value);
+        });
+      }
+
       // Keyboard shortcuts
       window.addEventListener('keydown', (e) => {
         if (e.key === ' ') {
@@ -302,6 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
         this.drawStaticObstacles(this.data.metadata.static_obstacles);
       }
 
+      // 2b. Draw Potholes & Road Defects
+      if (this.data.metadata && this.data.metadata.potholes) {
+        this.drawPotholes(this.data.metadata.potholes);
+      }
+
       // 3. Draw Free Space Corridor Bounds
       if (step.freeSpace && step.freeSpace.y_min_vec && step.freeSpace.y_max_vec) {
         this.drawFreeSpaceBounds(step.freeSpace, egoX);
@@ -341,36 +360,152 @@ document.addEventListener('DOMContentLoaded', () => {
     drawRoad(length, width) {
       const ctx = this.ctx;
       const s = this.scale;
+      const meta = this.data.metadata || {};
+      const hasCurve = meta.curve_amp && meta.curve_amp > 0;
+      const yCenterBase = (meta.road_bounds ? (meta.road_bounds[2] + meta.road_bounds[3]) / 2 : width / 2);
+      const halfW = width / 2;
 
-      // Road asphalt surface
-      ctx.fillStyle = '#161b22';
-      ctx.fillRect(-20 * s, 0, (length + 40) * s, width * s);
+      if (!hasCurve) {
+        // Road asphalt surface
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(-20 * s, 0, (length + 40) * s, width * s);
 
-      // Outer Road Boundaries
-      ctx.strokeStyle = '#484f58';
-      ctx.lineWidth = 3;
-      
-      // Bottom Boundary (y=0)
-      ctx.beginPath();
-      ctx.moveTo(-20 * s, 0);
-      ctx.lineTo((length + 40) * s, 0);
-      ctx.stroke();
+        // Outer Road Boundaries
+        ctx.strokeStyle = '#484f58';
+        ctx.lineWidth = 3;
+        
+        // Bottom Boundary (y=0)
+        ctx.beginPath();
+        ctx.moveTo(-20 * s, 0);
+        ctx.lineTo((length + 40) * s, 0);
+        ctx.stroke();
 
-      // Top Boundary (y=width)
-      ctx.beginPath();
-      ctx.moveTo(-20 * s, width * s);
-      ctx.lineTo((length + 40) * s, width * s);
-      ctx.stroke();
+        // Top Boundary (y=width)
+        ctx.beginPath();
+        ctx.moveTo(-20 * s, width * s);
+        ctx.lineTo((length + 40) * s, width * s);
+        ctx.stroke();
 
-      // Center Lane Divider Line (Dashed)
-      ctx.strokeStyle = '#30363d';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([10, 10]);
-      ctx.beginPath();
-      ctx.moveTo(-20 * s, (width / 2) * s);
-      ctx.lineTo((length + 40) * s, (width / 2) * s);
-      ctx.stroke();
-      ctx.setLineDash([]);
+        // Center Lane Divider Line (Dashed)
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath();
+        ctx.moveTo(-20 * s, (width / 2) * s);
+        ctx.lineTo((length + 40) * s, (width / 2) * s);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        const amp = meta.curve_amp;
+        const lambda = meta.curve_lambda || 80.0;
+        const xStart = meta.curve_x_start !== undefined ? meta.curve_x_start : 20.0;
+        const noise = meta.boundary_noise_amp || 0.0;
+
+        const getCenter = (x) => {
+          if (x < xStart) return yCenterBase;
+          const dx = x - xStart;
+          const sRamp = Math.min(1.0, dx / 15.0);
+          const env = 3.0 * sRamp * sRamp - 2.0 * sRamp * sRamp * sRamp;
+          return yCenterBase + env * amp * Math.sin(2 * Math.PI * dx / lambda);
+        };
+
+        const xMin = -20;
+        const xMax = length + 40;
+        const stepX = 1.0;
+
+        // Draw curved asphalt polygon
+        ctx.fillStyle = '#161b22';
+        ctx.beginPath();
+        for (let x = xMin; x <= xMax; x += stepX) {
+          const yc = getCenter(x);
+          const yBot = yc - halfW + (noise > 0 ? noise * Math.cos(x / 9.0 + 1.2) : 0);
+          if (x === xMin) ctx.moveTo(x * s, yBot * s);
+          else ctx.lineTo(x * s, yBot * s);
+        }
+        for (let x = xMax; x >= xMin; x -= stepX) {
+          const yc = getCenter(x);
+          const yTop = yc + halfW + (noise > 0 ? noise * Math.sin(x / 7.0 + 0.4) : 0);
+          ctx.lineTo(x * s, yTop * s);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Outer boundaries
+        ctx.strokeStyle = '#484f58';
+        ctx.lineWidth = 3;
+
+        // Bottom boundary
+        ctx.beginPath();
+        for (let x = xMin; x <= xMax; x += stepX) {
+          const yc = getCenter(x);
+          const yBot = yc - halfW + (noise > 0 ? noise * Math.cos(x / 9.0 + 1.2) : 0);
+          if (x === xMin) ctx.moveTo(x * s, yBot * s);
+          else ctx.lineTo(x * s, yBot * s);
+        }
+        ctx.stroke();
+
+        // Top boundary
+        ctx.beginPath();
+        for (let x = xMin; x <= xMax; x += stepX) {
+          const yc = getCenter(x);
+          const yTop = yc + halfW + (noise > 0 ? noise * Math.sin(x / 7.0 + 0.4) : 0);
+          if (x === xMin) ctx.moveTo(x * s, yTop * s);
+          else ctx.lineTo(x * s, yTop * s);
+        }
+        ctx.stroke();
+
+        // Center line (dashed)
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath();
+        for (let x = xMin; x <= xMax; x += stepX) {
+          const yc = getCenter(x);
+          if (x === xMin) ctx.moveTo(x * s, yc * s);
+          else ctx.lineTo(x * s, yc * s);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    },
+
+    drawPotholes(potholes) {
+      if (!potholes || !potholes.length) return;
+      const list = Array.isArray(potholes) ? potholes : [potholes];
+      const ctx = this.ctx;
+      const s = this.scale;
+
+      list.forEach(p => {
+        if (!p || p.x === undefined) return;
+        ctx.save();
+        ctx.translate(p.x * s, p.y * s);
+
+        // Pothole hole depression
+        ctx.fillStyle = '#090d13';
+        ctx.strokeStyle = '#8b949e';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, (p.length / 2) * s, (p.width / 2) * s, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner hazard border
+        ctx.strokeStyle = 'rgba(248, 81, 73, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, (p.length / 2.5) * s, (p.width / 2.5) * s, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // Label
+        ctx.save();
+        ctx.scale(1, -1);
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '9px "JetBrains Mono", monospace';
+        ctx.fillText(`POT_${p.id}`, p.x * s - 10, -p.y * s - (p.width / 2) * s - 3);
+        ctx.restore();
+      });
     },
 
     drawStaticObstacles(obsList) {
@@ -485,16 +620,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
       list.forEach(ag => {
         if (!ag || ag.x === undefined || ag.x < -50) return;
+        const L = ag.length || 4.7;
+        const W = ag.width || 1.8;
+        const heading = (ag.heading !== undefined) ? ag.heading : Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+
         ctx.strokeStyle = '#d29922';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
 
         ctx.save();
         ctx.translate(ag.x * s, ag.y * s);
-        ctx.rotate(ag.heading || 0);
+        ctx.rotate(heading);
 
-        const L = 4.7, W = 1.8;
-        ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+        const type = (ag.type || 'car').toLowerCase();
+        if (type === 'pedestrian' || type === 'ped') {
+          ctx.beginPath();
+          ctx.arc(0, 0, (Math.max(L, W) / 2) * s, 0, 2 * Math.PI);
+          ctx.stroke();
+        } else if (type === 'cattle') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, (L / 2) * s, (W / 2) * s, 0, 0, 2 * Math.PI);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+        }
         ctx.restore();
         ctx.setLineDash([]);
       });
@@ -509,23 +658,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ag || ag.x === undefined || ag.x < -50) return;
         const L = ag.length || 4.7;
         const W = ag.width || 1.8;
-        const heading = Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+        const heading = (ag.heading !== undefined) ? ag.heading : Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+        const type = (ag.type || 'car').toLowerCase();
+
+        // Distinct styling per traffic class
+        let fillCol = '#f0883e'; // CAR: orange
+        let strokeCol = '#d29922';
+        let shapeType = 'rect';
+
+        if (type === 'bike' || type === 'motorcycle') {
+          fillCol = '#a371f7'; // BIKE: purple
+          strokeCol = '#bc8cff';
+        } else if (type === 'auto' || type === 'autorickshaw') {
+          fillCol = '#d29922'; // AUTO: amber/yellow
+          strokeCol = '#e3b341';
+        } else if (type === 'pedestrian' || type === 'ped') {
+          fillCol = '#3fb950'; // PEDESTRIAN: green
+          strokeCol = '#56d364';
+          shapeType = 'circle';
+        } else if (type === 'cattle') {
+          fillCol = '#a05a2c'; // CATTLE: earthy brown
+          strokeCol = '#d4a373';
+          shapeType = 'oval';
+        }
 
         ctx.save();
         ctx.translate(ag.x * s, ag.y * s);
         ctx.rotate(heading);
 
-        // Vehicle body
-        ctx.fillStyle = '#f0883e';
-        ctx.strokeStyle = '#d29922';
+        ctx.fillStyle = fillCol;
+        ctx.strokeStyle = strokeCol;
         ctx.lineWidth = 1.5;
-        ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
-        ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
 
-        // Direction Indicator
+        if (shapeType === 'circle') {
+          ctx.beginPath();
+          ctx.arc(0, 0, (Math.max(L, W) / 2) * s, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        } else if (shapeType === 'oval') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, (L / 2) * s, (W / 2) * s, 0, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
+          ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+        }
+
+        // Heading / Direction Indicator
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(L/3 * s, 0, 2, 0, 2*Math.PI);
+        const noseX = (shapeType === 'circle' ? (Math.max(L, W) / 2 - 0.15) : (L / 2 - 0.25));
+        ctx.arc(noseX * s, 0, 1.8, 0, 2 * Math.PI);
         ctx.fill();
 
         ctx.restore();
@@ -533,9 +717,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Label (unrotated text)
         ctx.save();
         ctx.scale(1, -1);
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = strokeCol;
         ctx.font = '10px "JetBrains Mono", monospace';
-        ctx.fillText(`A${ag.id}`, ag.x * s - 6, -ag.y * s - W/2 * s - 4);
+        const labelText = ag.id_str || `A${ag.id}`;
+        ctx.fillText(labelText, ag.x * s - 8, -ag.y * s - (W / 2) * s - 4);
         ctx.restore();
       });
     },

@@ -70,9 +70,11 @@ classdef ObservationModel < handle
             if nargin < 3, dt = 0.1; end
             
             obs_world = world; % Shallow copy of WorldState
-            obs_structs = struct('agent_id', {}, 'x', {}, 'y', {}, 'velocity', {}, ...
+            obs_structs = struct('agent_id', {}, 'id_str', {}, 'type', {}, 'behavior_state', {}, ...
+                                 'x', {}, 'y', {}, 'velocity', {}, ...
                                  'heading', {}, 'vx', {}, 'vy', {}, ...
-                                 'length', {}, 'width', {}, 'timestamp', {}, 'age', {});
+                                 'length', {}, 'width', {}, 'timestamp', {}, 'age', {}, ...
+                                 'confidence', {}, 'active', {});
             
             if world.n_agents == 0
                 return;
@@ -90,6 +92,9 @@ classdef ObservationModel < handle
                         heading = atan2(ag.vy, ag.vx + 1e-6);
                         
                         s.agent_id = ag.id;
+                        s.id_str = ag.id_str;
+                        s.type = ag.type;
+                        s.behavior_state = ag.behavior_state;
                         s.x = ag.x;
                         s.y = ag.y;
                         s.velocity = speed;
@@ -100,6 +105,8 @@ classdef ObservationModel < handle
                         s.width = ag.width;
                         s.timestamp = world.t;
                         s.age = 0.0;
+                        s.confidence = 1.0;
+                        s.active = true;
                         
                         obs_structs(i) = s;
                     end
@@ -127,6 +134,9 @@ classdef ObservationModel < handle
                         vy_obs = v_obs * sin(th_obs);
                         
                         s.agent_id = ag.id;
+                        s.id_str = ag.id_str;
+                        s.type = ag.type;
+                        s.behavior_state = ag.behavior_state;
                         s.x = x_obs;
                         s.y = y_obs;
                         s.velocity = v_obs;
@@ -137,13 +147,21 @@ classdef ObservationModel < handle
                         s.width = ag.width;
                         s.timestamp = world.t;
                         s.age = 0.0;
+                        s.confidence = max(0.60, min(1.0, 1.0 - hypot(n_pos(1), n_pos(2)) / 2.0));
+                        s.active = true;
                         
                         obs_structs(i) = s;
                         
                         % Store observed Agent into obs_world
                         obs_ag = Agent(ag.id, x_obs, y_obs, vx_obs, vy_obs, ag.sigma);
+                        obs_ag.id_str = ag.id_str;
+                        obs_ag.type = ag.type;
+                        obs_ag.behavior_state = ag.behavior_state;
+                        obs_ag.direction = ag.direction;
                         obs_ag.length = ag.length;
                         obs_ag.width = ag.width;
+                        obs_ag.heading = th_obs;
+                        obs_ag.v = v_obs;
                         obs_world.agents(i) = obs_ag;
                     end
                     
@@ -172,6 +190,9 @@ classdef ObservationModel < handle
                         heading = atan2(ag.vy, ag.vx + 1e-6);
                         
                         s.agent_id = ag.id;
+                        s.id_str = ag.id_str;
+                        s.type = ag.type;
+                        s.behavior_state = ag.behavior_state;
                         s.x = ag.x;
                         s.y = ag.y;
                         s.velocity = speed;
@@ -182,6 +203,8 @@ classdef ObservationModel < handle
                         s.width = ag.width;
                         s.timestamp = world.t - current_age;
                         s.age = current_age;
+                        s.confidence = max(0.50, 1.0 - current_age / 1.0);
+                        s.active = true;
                         
                         obs_structs(i) = s;
                     end
@@ -220,6 +243,9 @@ classdef ObservationModel < handle
                         vy_obs = v_obs * sin(th_obs);
                         
                         s.agent_id = ag.id;
+                        s.id_str = ag.id_str;
+                        s.type = ag.type;
+                        s.behavior_state = ag.behavior_state;
                         s.x = x_obs;
                         s.y = y_obs;
                         s.velocity = v_obs;
@@ -230,12 +256,20 @@ classdef ObservationModel < handle
                         s.width = ag.width;
                         s.timestamp = world.t - current_age;
                         s.age = current_age;
+                        s.confidence = max(0.50, min(1.0, 1.0 - current_age - hypot(n_pos(1), n_pos(2))/2.0));
+                        s.active = true;
                         
                         obs_structs(i) = s;
                         
                         obs_ag = Agent(ag.id, x_obs, y_obs, vx_obs, vy_obs, ag.sigma);
+                        obs_ag.id_str = ag.id_str;
+                        obs_ag.type = ag.type;
+                        obs_ag.behavior_state = ag.behavior_state;
+                        obs_ag.direction = ag.direction;
                         obs_ag.length = ag.length;
                         obs_ag.width = ag.width;
+                        obs_ag.heading = th_obs;
+                        obs_ag.v = v_obs;
                         obs_world.agents(i) = obs_ag;
                     end
                     

@@ -14,6 +14,9 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     addParameter(p, 'actuator_model', [], @(x) isempty(x) || isa(x, 'ActuatorUncertaintyModel'));
     addParameter(p, 'uncertainty_mode', '', @ischar);
     addParameter(p, 'seed', 42, @isnumeric);
+    addParameter(p, 'traffic_mode', '', @ischar);
+    addParameter(p, 'traffic_seed', [], @isnumeric);
+    addParameter(p, 'road_type', '', @ischar);
     parse(p, varargin{:});
     
     scenario_name = p.Results.scenario;
@@ -25,6 +28,9 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     actuator_model = p.Results.actuator_model;
     unc_mode = lower(p.Results.uncertainty_mode);
     sim_seed = p.Results.seed;
+    param_traffic_mode = p.Results.traffic_mode;
+    param_traffic_seed = p.Results.traffic_seed;
+    param_road_type = p.Results.road_type;
     
     if ~isempty(unc_mode)
         switch unc_mode
@@ -64,6 +70,26 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     world = ScenarioDefinitions(scenario_name, config);
     vehicle = BicycleModel(config);
     
+    % Override traffic mode, traffic seed, or road type if passed as parameters
+    t_seed = sim_seed;
+    if ~isempty(param_traffic_seed)
+        t_seed = param_traffic_seed;
+    end
+    if ~isempty(param_traffic_mode)
+        world.traffic_mode = param_traffic_mode;
+        if strcmpi(param_traffic_mode, 'stochastic') && isempty(world.traffic_generator)
+            world.traffic_generator = StochasticTrafficGenerator(t_seed, 0.35);
+        end
+    end
+    if ~isempty(world.traffic_generator)
+        world.traffic_generator.seed = t_seed;
+        world.traffic_generator.reset();
+    end
+    if ~isempty(param_road_type)
+        world.road_geometry = RoadGeometry(param_road_type, 'road_length', config.road_length, ...
+                                           'road_width', config.road_width, 'y_center', config.road_center_y);
+    end
+    
     % Apply gap perturbation if requested
     if gap_offset ~= 0.0
         if isprop(world, 'static_obs') && ~isempty(world.static_obs)
@@ -79,20 +105,29 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     % Create Stage 5 Controller
     ctrl5 = Stage5CoordinationController(config);
     ctrl5.reset();
-    % Following is a longitudinal-car-following validation, not a passing
-    % benchmark. Disable only the Stage 5 macro-intent authority here.
-    ctrl5.setOvertakeEnabled(~strcmp(scenario_name, 'multi_vehicle_following'));
+    has_curvature = isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0;
+    ctrl5.setOvertakeEnabled(~strcmp(scenario_name, 'multi_vehicle_following') && ~contains(scenario_name, 'curved') && ~has_curvature);
     
     world.ego.v = v_init_ego;
     dt = config.dt;
     v_target_nominal = 8.0;
     
-    % Generate Nominal Center Reference Path
+    % Generate Nominal Center Reference Path (conforming to road geometry curvature)
     N_path = 500;
     ref_path = zeros(N_path, 5);
     ref_path(:, 1) = linspace(0, 150, N_path)';
-    ref_path(:, 2) = world.ego.y;
-    ref_path(:, 4) = 0.0;
+    if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0
+        for r = 1:N_path
+            [y_c_r, th_r, ~] = world.road_geometry.getCenterline(ref_path(r, 1));
+            ref_path(r, 2) = y_c_r;
+            ref_path(r, 3) = th_r; % Heading angle theta_ref
+            ref_path(r, 4) = 0.0;
+        end
+    else
+        ref_path(:, 2) = world.ego.y;
+        ref_path(:, 3) = 0.0;
+        ref_path(:, 4) = 0.0;
+    end
     ref_path(:, 5) = v_target_nominal;
     
     if verbose
@@ -155,6 +190,24 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     simMeta.perception_mode = obs_model.mode;
     simMeta.actuator_mode = actuator_model.mode;
     simMeta.v_target_nominal = v_target_nominal;
+    simMeta.traffic_mode = world.traffic_mode;
+    if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+        simMeta.road_type = world.road_geometry.road_type;
+        simMeta.potholes = world.road_geometry.potholes;
+        simMeta.curve_amp = world.road_geometry.curve_amp;
+        simMeta.curve_lambda = world.road_geometry.curve_lambda;
+        simMeta.curve_x_start = world.road_geometry.curve_x_start;
+        simMeta.grade_slope = world.road_geometry.grade_slope;
+        simMeta.boundary_noise_amp = world.road_geometry.boundary_noise_amp;
+    else
+        simMeta.road_type = 'straight';
+        simMeta.potholes = [];
+        simMeta.curve_amp = 0.0;
+        simMeta.curve_lambda = 80.0;
+        simMeta.curve_x_start = 20.0;
+        simMeta.grade_slope = 0.0;
+        simMeta.boundary_noise_amp = 0.0;
+    end
     simMeta.road_bounds = [0, config.road_length, config.road_center_y - config.road_width/2, config.road_center_y + config.road_width/2];
     simMeta.road_length = config.road_length;
     simMeta.road_width = config.road_width;
@@ -232,8 +285,13 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         history.steering_error(k) = act_info.steering_error;
         history.acceleration_error(k) = act_info.acceleration_error;
         
-        % Closed-Loop Dynamics Step for Ego Vehicle Plant
-        world.ego = vehicle.stepKinematic(world.ego, a_actual_cmd, delta_actual_cmd, dt);
+        % Closed-Loop Dynamics Step for Ego Vehicle Plant (accounting for road grade gravity effect)
+        grade_ang = 0.0;
+        if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+            [grade_ang, ~] = world.road_geometry.getGrade(world.ego.x);
+        end
+        a_applied_plant = a_actual_cmd - 9.81 * sin(grade_ang);
+        world.ego = vehicle.stepKinematic(world.ego, a_applied_plant, delta_actual_cmd, dt);
         history.delta_plant(k) = world.ego.delta;
         history.a_plant(k) = world.ego.a;
         
@@ -274,7 +332,8 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         end
         
         % Compute Active Reference Lateral Target for Tracking RMSE
-        y_nominal = ref_path(1, 2);
+        [~, nearest_ref_idx] = min(abs(ref_path(:, 1) - world.ego.x));
+        y_nominal = ref_path(nearest_ref_idx, 2);
         ref_y_active = y_nominal;
         if strcmp(info.macro_intent, 'OVERTAKE') && ctrl5.x_overtake_start > 0
             L_lc = 12.0;
@@ -348,7 +407,19 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         for gt_i = 1:world.n_agents
             ag = world.agents(gt_i);
             if ag.x > -50
-                gt_agents = [gt_agents; struct('id', ag.id, 'x', ag.x, 'y', ag.y, 'vx', ag.vx, 'vy', ag.vy, 'length', ag.length, 'width', ag.width)];
+                ag_id_str = sprintf('A%d', ag.id);
+                if isprop(ag, 'id_str') && ~isempty(ag.id_str), ag_id_str = ag.id_str; end
+                ag_type = 'car';
+                if isprop(ag, 'type') && ~isempty(ag.type), ag_type = ag.type; end
+                ag_state = 'CRUISING';
+                if isprop(ag, 'behavior_state') && ~isempty(ag.behavior_state), ag_state = ag.behavior_state; end
+                ag_dir = 1;
+                if isprop(ag, 'direction') && ~isempty(ag.direction), ag_dir = ag.direction; end
+                
+                gt_agents = [gt_agents; struct('id', ag.id, 'id_str', ag_id_str, 'type', ag_type, ...
+                                               'behavior_state', ag_state, 'direction', ag_dir, ...
+                                               'x', ag.x, 'y', ag.y, 'vx', ag.vx, 'vy', ag.vy, ...
+                                               'length', ag.length, 'width', ag.width)];
             end
         end
         slog.groundTruth.agents = gt_agents;
@@ -356,13 +427,36 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         slog.groundTruth.is_collision = is_coll;
         slog.groundTruth.in_bounds = in_bounds;
         
+        % Road Geometry Telemetry
+        if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+            [y_c_k, ~, ~] = world.road_geometry.getCenterline(world.ego.x);
+            [y_min_k, y_max_k] = world.road_geometry.getBounds(world.ego.x);
+            slog.road = struct('type', world.road_geometry.road_type, 'y_center', y_c_k, ...
+                               'y_min', y_min_k, 'y_max', y_max_k, 'grade', grade_ang);
+        end
+        
         % Observation
         slog.observation.mode = obs_model.mode;
         obs_agents_log = [];
         if ~isempty(obs_structs)
             for obs_i = 1:length(obs_structs)
                 if obs_structs(obs_i).agent_id > 0
-                    obs_agents_log = [obs_agents_log; struct('id', obs_structs(obs_i).agent_id, 'x', obs_structs(obs_i).x, 'y', obs_structs(obs_i).y, 'velocity', obs_structs(obs_i).velocity, 'heading', obs_structs(obs_i).heading, 'vx', obs_structs(obs_i).vx, 'vy', obs_structs(obs_i).vy, 'age', obs_structs(obs_i).age)];
+                    obs_s = obs_structs(obs_i);
+                    s_id_str = sprintf('A%d', obs_s.agent_id);
+                    if isfield(obs_s, 'id_str') && ~isempty(obs_s.id_str), s_id_str = obs_s.id_str; end
+                    s_type = 'car';
+                    if isfield(obs_s, 'type') && ~isempty(obs_s.type), s_type = obs_s.type; end
+                    s_bstate = 'CRUISING';
+                    if isfield(obs_s, 'behavior_state') && ~isempty(obs_s.behavior_state), s_bstate = obs_s.behavior_state; end
+                    s_conf = 1.0;
+                    if isfield(obs_s, 'confidence') && ~isempty(obs_s.confidence), s_conf = obs_s.confidence; end
+                    
+                    obs_agents_log = [obs_agents_log; struct('id', obs_s.agent_id, 'id_str', s_id_str, ...
+                                                            'type', s_type, 'behavior_state', s_bstate, ...
+                                                            'x', obs_s.x, 'y', obs_s.y, ...
+                                                            'velocity', obs_s.velocity, 'heading', obs_s.heading, ...
+                                                            'vx', obs_s.vx, 'vy', obs_s.vy, ...
+                                                            'age', obs_s.age, 'confidence', s_conf)];
                 end
             end
         end
@@ -373,7 +467,18 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         if isfield(info, 'detections') && ~isempty(info.detections)
             for d_i = 1:length(info.detections)
                 d = info.detections(d_i);
-                det_log = [det_log; struct('id', d.id, 'x', d.x, 'y', d.y, 'vx', d.vx, 'vy', d.vy, 'v', d.v, 'dx', d.dx, 'dy', d.dy, 'd_rel', d.d_rel, 'is_ahead', d.is_ahead, 'is_same_lane', d.is_same_lane, 'is_oncoming', d.is_oncoming)];
+                d_type = 'car';
+                if isfield(d, 'type') && ~isempty(d.type), d_type = d.type; end
+                d_id_str = sprintf('A%d', d.id);
+                if isfield(d, 'id_str') && ~isempty(d.id_str), d_id_str = d.id_str; end
+                d_len = 4.7; if isfield(d, 'length') && ~isempty(d.length), d_len = d.length; end
+                d_wid = 1.8; if isfield(d, 'width') && ~isempty(d.width), d_wid = d.width; end
+                
+                det_log = [det_log; struct('id', d.id, 'id_str', d_id_str, 'type', d_type, ...
+                                           'length', d_len, 'width', d_wid, ...
+                                           'x', d.x, 'y', d.y, 'vx', d.vx, 'vy', d.vy, 'v', d.v, ...
+                                           'dx', d.dx, 'dy', d.dy, 'd_rel', d.d_rel, ...
+                                           'is_ahead', d.is_ahead, 'is_same_lane', d.is_same_lane, 'is_oncoming', d.is_oncoming)];
             end
         end
         slog.detections = det_log;
@@ -492,6 +597,24 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     metrics.mean_solve_time = mean_solve_time;
     metrics.intent_counts = intent_counts;
     metrics.lat_rmse = lat_rmse;
+    
+    % Stochastic Environment Forensic Metrics
+    if strcmpi(world.traffic_mode, 'stochastic') && ~isempty(world.traffic_generator)
+        metrics.traffic_count = world.traffic_generator.total_spawned;
+        metrics.active_agent_count = length(world.traffic_generator.active_agents);
+        metrics.agent_type_counts = world.traffic_generator.getClassCounts();
+        metrics.pedestrian_crossings = world.traffic_generator.pedestrian_crossings;
+        metrics.cattle_crossings = world.traffic_generator.cattle_crossings;
+        metrics.deferred_spawns = world.traffic_generator.deferred_spawns;
+    else
+        metrics.traffic_count = world.n_agents;
+        metrics.active_agent_count = world.n_agents;
+        metrics.agent_type_counts = struct('car', world.n_agents, 'bike', 0, 'auto', 0, 'pedestrian', 0, 'cattle', 0);
+        metrics.pedestrian_crossings = 0;
+        metrics.cattle_crossings = 0;
+        metrics.deferred_spawns = 0;
+    end
+    metrics.min_ttc = min(history.min_ttc);
     
     % Perception Metrics
     metrics.pos_rmse = sqrt(mean(history.perception_e_pos.^2));

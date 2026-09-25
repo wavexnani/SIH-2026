@@ -20,12 +20,24 @@ classdef CorridorBoundProvider < AbstractBoundProvider
             nx = 4;
             if nargin < 4 || isempty(N_p), N_p = 20; end
             
-            bounds = world.getRoadBounds();
-            y_min_safe = bounds(3) + obj.half_W_bound;
-            y_max_safe = bounds(4) - obj.half_W_bound;
-            
-            y_min_vec = repmat(y_min_safe, N_p, 1);
-            y_max_vec = repmat(y_max_safe, N_p, 1);
+            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && (world.road_geometry.curve_amp > 0 || world.road_geometry.boundary_noise_amp > 0)
+                y_min_vec = zeros(N_p, 1);
+                y_max_vec = zeros(N_p, 1);
+                for k = 1:N_p
+                    idx_x = (k - 1) * nx + 1;
+                    px_k = X_ref(idx_x);
+                    [y_min_road, y_max_road] = world.road_geometry.getBounds(px_k);
+                    y_min_vec(k) = y_min_road + obj.half_W_bound;
+                    y_max_vec(k) = y_max_road - obj.half_W_bound;
+                end
+            else
+                bounds = world.getRoadBounds();
+                y_min_safe = bounds(3) + obj.half_W_bound;
+                y_max_safe = bounds(4) - obj.half_W_bound;
+                
+                y_min_vec = repmat(y_min_safe, N_p, 1);
+                y_max_vec = repmat(y_max_safe, N_p, 1);
+            end
         end
     end
 end

@@ -33,9 +33,20 @@ classdef RiskPredictor
             for i = 1:n_det
                 det = detections(i);
                 
+                L_agent = L_agent_default;
+                if isfield(det, 'type') && ~isempty(det.type) && ~strcmp(det.type, 'car')
+                    if isfield(det, 'length') && ~isempty(det.length) && det.length > 0
+                        L_agent = det.length;
+                    end
+                end
+                dy_tol = 2.0;
+                if isfield(det, 'width') && ~isempty(det.width) && det.width > 0
+                    dy_tol = max(1.4, (1.8 + det.width)/2 + 0.3);
+                end
+                
                 % Focus TTC calculation on vehicles ahead or in potential conflict paths
                 if det.dx > 0
-                    clearance_dx = det.dx - (L_ego + L_agent_default)/2;
+                    clearance_dx = det.dx - (L_ego + L_agent)/2;
                     closing_rate = -det.dvx; % Positive when ego is closing in on agent
                     
                     if clearance_dx <= 0
@@ -47,7 +58,7 @@ classdef RiskPredictor
                     end
                     
                     % Track minimum TTC for vehicles in same or overlapping lane
-                    if abs(det.dy) <= 2.0
+                    if abs(det.dy) <= dy_tol
                         if ttc_vector(i) < min_ttc
                             min_ttc = ttc_vector(i);
                         end
@@ -58,7 +69,7 @@ classdef RiskPredictor
                     oncoming_closing_rate = det.v + abs(det.dvx);
                     if clearance_dx > 0 && oncoming_closing_rate > 0.1
                         ttc_vector(i) = clearance_dx / oncoming_closing_rate;
-                        if abs(det.dy) <= 2.0 && ttc_vector(i) < min_ttc
+                        if abs(det.dy) <= dy_tol && ttc_vector(i) < min_ttc
                             min_ttc = ttc_vector(i);
                         end
                     end
