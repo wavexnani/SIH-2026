@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('resize', () => this.resizeCanvas());
 
       this.bindEvents();
-      this.loadData();
+      const scenSelect = document.getElementById('scenario-select');
+      const initialUrl = scenSelect ? scenSelect.value : 'data/handdrawn_village_scenario.json';
+      this.loadData(initialUrl);
     },
 
     resizeCanvas() {
@@ -36,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       this.renderFrame();
     },
 
-    async loadData(jsonUrl = 'data/hero_scenario.json') {
+    async loadData(jsonUrl = 'data/handdrawn_village_scenario.json') {
       try {
         const overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.style.display = 'flex';
@@ -311,6 +313,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // 1. Draw Road Surface & Markings
       this.drawRoad(roadLength, roadWidth);
 
+      // 1b. Draw Canal Trench & Culvert Bridge (if defined in metadata)
+      if (this.data.metadata && this.data.metadata.bridge_canal) {
+        this.drawCanalBridge(this.data.metadata.bridge_canal, roadLength, roadWidth);
+      }
+
+      // 1c. Draw Physical Speed Breakers (if defined in metadata)
+      if (this.data.metadata && this.data.metadata.speed_breakers) {
+        this.drawSpeedBreakers(this.data.metadata.speed_breakers);
+      }
+
       // 2. Draw Static Obstacles
       if (this.data.metadata && this.data.metadata.static_obstacles) {
         this.drawStaticObstacles(this.data.metadata.static_obstacles);
@@ -504,6 +516,145 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = '#8b949e';
         ctx.font = '9px "JetBrains Mono", monospace';
         ctx.fillText(`POT_${p.id}`, p.x * s - 10, -p.y * s - (p.width / 2) * s - 3);
+        ctx.restore();
+      });
+    },
+
+    drawCanalBridge(bridgeCanal, roadLength, roadWidth) {
+      if (!bridgeCanal || (!bridgeCanal.active && !bridgeCanal.is_active)) return;
+      const ctx = this.ctx;
+      const s = this.scale;
+      const xStart = bridgeCanal.x_start || 92.0;
+      const xEnd = bridgeCanal.x_end || 106.0;
+      const bridgeW = bridgeCanal.width || 5.2;
+      const yCenter = roadWidth / 2;
+
+      // 1. Canal Water Trench (Flowing across road under bridge)
+      const canalMargin = 12.0; // Extend water beyond road boundaries
+      ctx.save();
+      // Flowing water gradient
+      const waterGrad = ctx.createLinearGradient(xStart * s, 0, xEnd * s, 0);
+      waterGrad.addColorStop(0, '#0c4a6e');
+      waterGrad.addColorStop(0.5, '#0284c7');
+      waterGrad.addColorStop(1, '#0c4a6e');
+      ctx.fillStyle = waterGrad;
+      ctx.fillRect(xStart * s, -canalMargin * s, (xEnd - xStart) * s, (roadWidth + 2 * canalMargin) * s);
+
+      // Water Ripple Waves
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.5;
+      for (let yW = -canalMargin; yW <= roadWidth + canalMargin; yW += 1.8) {
+        ctx.beginPath();
+        ctx.moveTo(xStart * s, yW * s);
+        ctx.bezierCurveTo(
+          (xStart + 4) * s, (yW + 0.3) * s,
+          (xEnd - 4) * s, (yW - 0.3) * s,
+          xEnd * s, yW * s
+        );
+        ctx.stroke();
+      }
+
+      // Canal Earth/Stone Banks
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect((xStart - 1.2) * s, -canalMargin * s, 1.2 * s, (roadWidth + 2 * canalMargin) * s);
+      ctx.fillRect(xEnd * s, -canalMargin * s, 1.2 * s, (roadWidth + 2 * canalMargin) * s);
+
+      // 2. Concrete Culvert Bridge Deck (Asphalt road over canal)
+      const yBridgeLo = yCenter - bridgeW / 2;
+      const yBridgeHi = yCenter + bridgeW / 2;
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(xStart * s, yBridgeLo * s, (xEnd - xStart) * s, bridgeW * s);
+
+      // 3. Concrete Parapet / Safety Railings (Constrains drivable road width to 5.2m)
+      const drawParapet = (yPos) => {
+        // Concrete base barrier
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(xStart * s, (yPos - 0.25) * s, (xEnd - xStart) * s, 0.5 * s);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(xStart * s, (yPos - 0.25) * s, (xEnd - xStart) * s, 0.5 * s);
+
+        // Hazard striped reflectors along barrier
+        for (let xp = xStart; xp < xEnd - 1.0; xp += 2.0) {
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(xp * s, (yPos - 0.15) * s, 1.0 * s, 0.3 * s);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect((xp + 1.0) * s, (yPos - 0.15) * s, 1.0 * s, 0.3 * s);
+        }
+      };
+
+      drawParapet(yBridgeLo);
+      drawParapet(yBridgeHi);
+
+      // Centerline across bridge
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(xStart * s, yCenter * s);
+      ctx.lineTo(xEnd * s, yCenter * s);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Bridge & Canal Label
+      ctx.save();
+      ctx.scale(1, -1);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 10px "JetBrains Mono", monospace';
+      ctx.fillText('CULVERT BRIDGE (CANAL CROSSING)', (xStart + 0.5) * s, -(yBridgeHi + 0.6) * s);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillText('WATER CANAL', (xStart + 3.0) * s, -(yBridgeLo - 1.2) * s);
+      ctx.restore();
+    },
+
+    drawSpeedBreakers(speedBreakers) {
+      if (!speedBreakers || !speedBreakers.length) return;
+      const list = Array.isArray(speedBreakers) ? speedBreakers : [speedBreakers];
+      const ctx = this.ctx;
+      const s = this.scale;
+      const meta = this.data.metadata || {};
+      const roadW = meta.road_width || 6.0;
+
+      list.forEach(sb => {
+        if (!sb || sb.x === undefined) return;
+        const L = sb.length || 0.8;
+        const W = sb.width || roadW;
+        const yMin = 0.0;
+        const yMax = roadW;
+
+        ctx.save();
+        // Speed bump asphalt mound background
+        ctx.fillStyle = '#334155';
+        ctx.fillRect((sb.x - L/2) * s, yMin * s, L * s, W * s);
+
+        // Alternating Yellow & Black Reflective Stripes (Indian IRC standard chevron pattern)
+        const stripeH = 0.5;
+        for (let y = yMin; y < yMax; y += stripeH * 2) {
+          ctx.fillStyle = '#facc15'; // Reflective yellow
+          ctx.fillRect((sb.x - L/2) * s, y * s, L * s, stripeH * s);
+          ctx.fillStyle = '#0f172a'; // Black contrast
+          ctx.fillRect((sb.x - L/2) * s, (y + stripeH) * s, L * s, stripeH * s);
+        }
+
+        // White warning markings on approach (rumble stripes)
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.0;
+        for (let dX of [-3.0, -2.0, -1.0, 1.0, 2.0, 3.0]) {
+          ctx.beginPath();
+          ctx.moveTo((sb.x + dX) * s, yMin * s);
+          ctx.lineTo((sb.x + dX) * s, yMax * s);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Speed Breaker Sign Label
+        ctx.save();
+        ctx.scale(1, -1);
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.fillText(`SPEED BUMP (${sb.x}m)`, (sb.x - 4.0) * s, -(yMax + 0.5) * s);
         ctx.restore();
       });
     },

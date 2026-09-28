@@ -65,7 +65,9 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     obs_model.reset();
     actuator_model.reset();
     
-    addpath('planning', 'config', 'vehicle', 'core', 'environment', 'stages');
+    if exist('setup_paths.m', 'file')
+        setup_paths;
+    end
     
     % Initialize Config & Environment
     config = SimulationConfig();
@@ -129,9 +131,10 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     ref_path = zeros(N_path, 5);
     ref_path(:, 1) = linspace(0, 150, N_path)';
     if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0
+        y_offset_lane = world.ego.y - world.road_geometry.y_center_base;
         for r = 1:N_path
             [y_c_r, th_r, ~] = world.road_geometry.getCenterline(ref_path(r, 1));
-            ref_path(r, 2) = y_c_r;
+            ref_path(r, 2) = y_c_r + y_offset_lane;
             ref_path(r, 3) = th_r; % Heading angle theta_ref
             ref_path(r, 4) = 0.0;
         end
@@ -222,9 +225,21 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         simMeta.curve_x_start = world.road_geometry.curve_x_start;
         simMeta.grade_slope = world.road_geometry.grade_slope;
         simMeta.boundary_noise_amp = world.road_geometry.boundary_noise_amp;
+        if isprop(world.road_geometry, 'bridge_canal')
+            simMeta.bridge_canal = world.road_geometry.bridge_canal;
+        else
+            simMeta.bridge_canal = [];
+        end
+        if isprop(world.road_geometry, 'speed_breakers')
+            simMeta.speed_breakers = world.road_geometry.speed_breakers;
+        else
+            simMeta.speed_breakers = [];
+        end
     else
         simMeta.road_type = 'straight';
         simMeta.potholes = [];
+        simMeta.bridge_canal = [];
+        simMeta.speed_breakers = [];
         simMeta.curve_amp = 0.0;
         simMeta.curve_lambda = 80.0;
         simMeta.curve_x_start = 20.0;
@@ -641,6 +656,7 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     metrics.collision_steps = collision_steps;
     metrics.bounds_steps = bounds_steps;
     metrics.min_clr = min_clr;
+    metrics.min_clearance = min_clr;
     metrics.hard_qp_count = hard_qp_count;
     metrics.soft_qp_count = soft_qp_count;
     metrics.safety_rejected_count = safety_rejected_count;

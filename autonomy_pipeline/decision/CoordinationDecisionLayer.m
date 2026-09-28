@@ -59,7 +59,7 @@ classdef CoordinationDecisionLayer < handle
                             break;
                         end
                     end
-                    if det_dx > -7.5
+                    if det_dx > -7.5 && interactions(i).ttc <= 6.0
                         has_oncoming_threat = true;
                         if interactions(i).ttc < min_oncoming_ttc
                             min_oncoming_ttc = interactions(i).ttc;
@@ -107,7 +107,7 @@ classdef CoordinationDecisionLayer < handle
             min_lead_dx = inf;
             for i = 1:length(detections)
                 det = detections(i);
-                if det.is_ahead && det.is_same_lane && det.dx < min_lead_dx
+                if ~strcmp(det.type, 'pothole') && det.is_ahead && det.is_same_lane && det.dx < min_lead_dx
                     min_lead_dx = det.dx;
                     lead_idx = i;
                 end
@@ -134,7 +134,11 @@ classdef CoordinationDecisionLayer < handle
                 decision.oncoming_ttc_s = gate_ttc;
                 decision.overtake_allowed = is_feasible;
                 
-                if has_oncoming_threat || ~is_feasible
+                gate_blocked_by_threat_or_gap = has_oncoming_threat || ...
+                    strcmp(block_reason, 'TTC_TOO_LOW') || ...
+                    strcmp(block_reason, 'INSUFFICIENT_SPATIAL_GAP');
+                
+                if gate_blocked_by_threat_or_gap
                     decision.macro_intent = 'YIELD';
                     decision.allow_overtake = false;
                     d_standstill = 15.0;
@@ -237,7 +241,18 @@ classdef CoordinationDecisionLayer < handle
             left_lane_blockage = false;
             for d = 1:length(detections)
                 det = detections(d);
-                if det.dx > -7.5 && det.dx < 50.0
+                if strcmp(det.type, 'pothole') || det.id == lead_det.id, continue; end
+                
+                % Longitudinal conflict window:
+                % Oncoming vehicles close rapidly -> require 50m clear horizon
+                % Same-direction vehicles -> conflict window is the active passing envelope
+                if det.is_oncoming
+                    max_dx_conflict = 50.0;
+                else
+                    max_dx_conflict = max(18.0, lead_det.dx + 8.0);
+                end
+                
+                if det.dx > -7.5 && det.dx < max_dx_conflict
                     % Check if vehicle or static obstacle is in passing corridor
                     if det.y > 2.50
                         left_lane_blockage = true;

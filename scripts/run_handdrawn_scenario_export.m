@@ -1,0 +1,19 @@
+% RUN_HANDDRAWN_SCENARIO_EXPORT
+% Runs Stage 5 closed-loop simulation on the digitized hand-drawn village scene
+% and exports the full telemetry to web_viewer/data/handdrawn_village_scenario.json
+
+proj_root = fileparts(fileparts(mfilename('fullpath')));
+run(fullfile(proj_root, 'setup_paths.m'));
+
+output_path = fullfile(proj_root, 'web_viewer', 'data', 'handdrawn_village_scenario.json');
+
+fprintf('Exporting digitized handdrawn village scenario to %s ...\n', output_path);
+export_simulation_json( ...
+    'scenario', 'handdrawn_village_canal', ...
+    'max_steps', 150, ...
+    'seed', 42, ...
+    'ego_v', 6.0, ...
+    'uncertainty_mode', 'ideal', ...
+    'output', output_path);
+
+fprintf('Done! Exported to %s\n', output_path);

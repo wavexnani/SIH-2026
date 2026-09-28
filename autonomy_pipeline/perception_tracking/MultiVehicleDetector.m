@@ -73,8 +73,10 @@ classdef MultiVehicleDetector
                 det.is_same_lane = (abs(det.dy) <= lane_tol);
                 det.is_adjacent_lane = (abs(det.dy) > lane_tol && abs(det.dy) <= 3.6);
                 
-                % Heading orientation indicator
-                det.is_oncoming = (cos(det.theta - ego_th) < -0.7);
+                % Heading orientation indicator (vehicles only)
+                det.is_oncoming = ~strcmp(det.type, 'cattle') && ~strcmp(det.type, 'pedestrian') && ...
+                                  ~strcmp(det.type, 'pothole') && ~strcmp(det.type, 'static_obstacle') && ...
+                                  (cos(det.theta - ego_th) < -0.7);
                 
                 detections(count) = det;
             end

@@ -115,6 +115,10 @@ function world = ScenarioDefinitions(scenario_name, cfg, varargin)
               'test_g_pedestrian', 'test_h_cattle', 'test_i_mixed'}
             world = scenario_stochastic_village_environment(world, cfg, varargin{:});
             
+        case {'handdrawn_village_canal', 'dense_village_canal_crossing', ...
+              'handdrawn_sketch_scenario', 'canal_bridge_village', 'handdrawn_village'}
+            world = scenario_handdrawn_village_canal(world, cfg, varargin{:});
+            
         otherwise
             warning('Unknown scenario: %s. Using default (moderate)', scenario_name);
             world = scenario_moderate(world, cfg);
@@ -914,6 +918,69 @@ function world = scenario_stochastic_village_environment(world, cfg, varargin)
     
     % Populate Initial Scene at t=0 with multiple simultaneous heterogeneous agents
     world.traffic_generator.populateInitialScene(world.road_geometry, world.ego);
+    world.agents = world.traffic_generator.getLegacyAgentsArray();
+    world.n_agents = length(world.agents);
+    
+    for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+end
+
+% =========================================================================
+% DIGITALIZED HAND-DRAWN RURAL VILLAGE & CANAL BRIDGE SCENARIO
+% =========================================================================
+
+function world = scenario_handdrawn_village_canal(world, cfg, varargin)
+    % SCENARIO_HANDDRAWN_VILLAGE_CANAL Digitalized Hand-Drawn Village Scene
+    %
+    % Integrates:
+    %   - Road geometry: 160m road, bridge culvert over canal (x=92-106m), upward curve (x > 106m)
+    %   - Physical defects: Pothole 1 (x=22m, y=1.8m), Pothole 2 (x=84m, y=1.1m)
+    %   - Infrastructure: Speed breaker (x=88m)
+    %   - Heterogeneous traffic:
+    %       * Fast Bike (id=1, squeezing between auto and pothole)
+    %       * Auto-Rickshaw (id=2, slowing and pulling over to drop passenger)
+    %       * Dropped Passenger (id=3, disembarking onto shoulder)
+    %       * Oncoming Car 1 (id=4, slowing for auto/bike bottleneck)
+    %       * Lead Car (id=5, cruising then decelerating for speed breaker/pedestrian)
+    %       * Reckless Pedestrian 2 (id=6, crossing with Brownian jitter)
+    %       * Oncoming Car 2 (id=7, speed breaker crawl + accelerating)
+    %       * Cattle Herd (id=8..11, 4 cows with 2D stochastic wandering & proximity reaction)
+    
+    p = inputParser;
+    addParameter(p, 'seed', 42, @isnumeric);
+    addParameter(p, 'density', 'MEDIUM', @ischar);
+    if nargin > 2
+        parse(p, varargin{:});
+        sim_seed = p.Results.seed;
+    else
+        sim_seed = 42;
+    end
+    
+    % Initialize ego vehicle in lower lane
+    world = world.setEgoState(5.0, 1.80, 0, 6.0);
+    
+    % Road Geometry (160m total, bridge at 92-106m, upward curve after bridge at x=106m)
+    world.road_geometry = RoadGeometry('unstructured', 'road_length', 160.0, ...
+                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
+                                       'curve_amp', 3.5, 'curve_lambda', 80.0, 'grade_slope', 0.01);
+    world.road_geometry.curve_x_start = 106.0;
+    world.road_geometry.boundary_noise_amp = 0.06;
+    world.road_geometry.setBridgeCanal(92.0, 106.0, 5.2);
+    world.road_length = 160.0;
+    world.road_width = cfg.road_width;
+    world.road_center_y = cfg.road_center_y;
+    
+    % Add Potholes from sketch
+    world.road_geometry.addPothole(1, 22.0, 1.80, 2.0, 1.3, 0.10, 'severe');  % Pothole 1
+    world.road_geometry.addPothole(2, 84.0, 1.10, 1.4, 1.0, 0.08, 'moderate'); % Pothole 2
+    world.potholes = world.road_geometry.potholes;
+    
+    % Add Speed Breaker from sketch
+    world.road_geometry.addSpeedBreaker(1, 88.0, 0.8, cfg.road_width, 0.10);
+    
+    % Handdrawn Traffic Generator
+    world.traffic_mode = 'stochastic';
+    world.traffic_generator = HanddrawnVillageTrafficGenerator(sim_seed);
+    world.traffic_generator.populateScene(world.road_geometry, world.ego);
     world.agents = world.traffic_generator.getLegacyAgentsArray();
     world.n_agents = length(world.agents);
     

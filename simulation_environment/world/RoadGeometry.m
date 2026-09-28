@@ -27,6 +27,12 @@ classdef RoadGeometry < handle
         
         % Physical potholes and road defects
         potholes            struct = struct('id', {}, 'x', {}, 'y', {}, 'length', {}, 'width', {}, 'depth', {}, 'severity', {})
+        
+        % Speed breakers (physical transverse bumps)
+        speed_breakers      struct = struct('id', {}, 'x', {}, 'length', {}, 'width', {}, 'height', {})
+        
+        % Water canal and bridge culvert structure
+        bridge_canal        struct = struct('active', false, 'x_start', 92.0, 'x_end', 106.0, 'width', 5.2)
     end
     
     methods
@@ -121,6 +127,14 @@ classdef RoadGeometry < handle
             [y_c, ~, ~] = obj.getCenterline(x);
             half_w = obj.road_width_nominal / 2.0;
             
+            % Bridge culvert over water canal constrains width strictly with concrete railings
+            if obj.bridge_canal.active && x >= obj.bridge_canal.x_start && x <= obj.bridge_canal.x_end
+                half_w_bridge = obj.bridge_canal.width / 2.0;
+                y_min = y_c - half_w_bridge;
+                y_max = y_c + half_w_bridge;
+                return;
+            end
+            
             % Edge irregularity (realistic unstructured shoulder variations)
             if obj.boundary_noise_amp > 0
                 delta_w_left = obj.boundary_noise_amp * sin(x / 7.0 + 0.4);
@@ -162,6 +176,29 @@ classdef RoadGeometry < handle
             p.severity = severity;
             
             obj.potholes(end+1) = p;
+        end
+        
+        function obj = addSpeedBreaker(obj, id, x, length_sb, width_sb, height_sb)
+            % ADDSPEEDBREAKER Adds a speed breaker bump across the road
+            if nargin < 4, length_sb = 0.8; end
+            if nargin < 5, width_sb = obj.road_width_nominal; end
+            if nargin < 6, height_sb = 0.10; end
+            
+            sb.id = id;
+            sb.x = x;
+            sb.length = length_sb;
+            sb.width = width_sb;
+            sb.height = height_sb;
+            obj.speed_breakers(end+1) = sb;
+        end
+        
+        function obj = setBridgeCanal(obj, x_start, x_end, bridge_width)
+            % SETBRIDGECANAL Configures water canal bridge culvert dimensions
+            if nargin < 4, bridge_width = 5.2; end
+            obj.bridge_canal.active = true;
+            obj.bridge_canal.x_start = x_start;
+            obj.bridge_canal.x_end = x_end;
+            obj.bridge_canal.width = bridge_width;
         end
         
         function [in_pothole, min_dist, closest_id] = checkPotholeProximity(obj, x, y, L, W)

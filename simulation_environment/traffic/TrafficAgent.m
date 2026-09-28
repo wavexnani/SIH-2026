@@ -71,6 +71,20 @@ classdef TrafficAgent < handle
         function val = get.vy(obj), val = obj.v * sin(obj.theta); end
         function val = get.heading(obj), val = obj.theta; end
         
+        function set.vx(obj, val)
+            vy_curr = obj.v * sin(obj.theta);
+            obj.v = hypot(val, vy_curr);
+            obj.theta = atan2(vy_curr, val + 1e-6);
+        end
+        function set.vy(obj, val)
+            vx_curr = obj.v * cos(obj.theta);
+            obj.v = hypot(vx_curr, val);
+            obj.theta = atan2(val, vx_curr + 1e-6);
+        end
+        function set.heading(obj, val)
+            obj.theta = val;
+        end
+        
         function obj = TrafficAgent(id, class_type, x, y, v, direction, varargin)
             if nargin >= 1 && ~isempty(id), obj.id = id; end
             if nargin >= 2 && ~isempty(class_type), obj.class_type = lower(class_type); end

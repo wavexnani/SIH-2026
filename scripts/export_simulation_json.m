@@ -50,13 +50,10 @@ function export_simulation_json(varargin)
     if ~isempty(traf_mode), fprintf('Traffic:     %s\n', traf_mode); end
     fprintf('Output:      %s\n\n', output_path);
     
-    % Run the actual MATLAB pipeline
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'stages'));
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'planning'));
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'config'));
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'vehicle'));
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'core'));
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'environment'));
+    proj_root = fileparts(fileparts(mfilename('fullpath')));
+    if exist(fullfile(proj_root, 'setup_paths.m'), 'file')
+        run(fullfile(proj_root, 'setup_paths.m'));
+    end
     
     [passed, metrics, history, simulationLog] = stage5_multivehicle_coordination( ...
         'scenario', scenario, ...

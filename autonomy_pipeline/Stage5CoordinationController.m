@@ -106,19 +106,24 @@ classdef Stage5CoordinationController < handle
                 obj.target_overtake_id = target_id;
             end
 
+            target_found = false;
             if obj.in_overtake_maneuver && target_id > 0
                 if ~isempty(detections)
                     for i = 1:length(detections)
                         if detections(i).id == target_id
+                            target_found = true;
                             ego_front_minus_lead_front = -detections(i).dx;
-                            if ego_front_minus_lead_front >= 7.50
+                            if ego_front_minus_lead_front >= 5.00
                                 lead_cleared = true;
                             end
                             break;
                         end
                     end
                 end
-                % If active target vehicle is temporarily absent from detections, lead_cleared remains false (conservative)
+                % If active target vehicle was passed and is now behind ego / absent from forward detections:
+                if ~target_found && ~strcmp(decision.macro_intent, 'OVERTAKE')
+                    lead_cleared = true;
+                end
             end
 
             if lead_cleared && obj.in_overtake_maneuver
@@ -126,13 +131,16 @@ classdef Stage5CoordinationController < handle
             else
                 obj.overtake_clear_count = 0;
             end
-            is_physically_complete = (obj.overtake_clear_count >= 5);
+            is_physically_complete = (obj.overtake_clear_count >= 3) || ...
+                                     (~target_found && ~strcmp(decision.macro_intent, 'OVERTAKE')) || ...
+                                     (strcmp(decision.macro_intent, 'YIELD') || strcmp(decision.macro_intent, 'FOLLOW'));
 
-            % Transition state logic: remain in overtake maneuver until physically complete (ego_front - lead_front >= 7.50m)
+            % Transition state logic: remain in overtake maneuver until physically complete
             was_in_maneuver = obj.in_overtake_maneuver;
             if obj.in_overtake_maneuver && is_physically_complete
                 obj.in_overtake_maneuver = false;
                 obj.target_overtake_id = -1;
+                obj.overtake_clear_count = 0;
             end
 
             is_overtake_active = obj.in_overtake_maneuver;
@@ -153,12 +161,13 @@ classdef Stage5CoordinationController < handle
                     obj.y_overtake_start = -1;
                 end
                 
-                % Reset recenter state once recentering distance is completed OR ego has returned to right lane centerline (|y - 1.80| <= 0.15m)
+                % Reset recenter state once recentering distance is completed OR ego has returned to right lane centerline (|y - y_ref| <= 0.15m and aligned)
                 if obj.x_recenter_start > 0
-                    L_lc_recenter_check = max(25.0, 3.5 * world.ego.v);
+                    L_lc_recenter_check = max(25.0, 3.5 * max(world.ego.v, 2.0));
                     [~, nearest_r] = min(abs(ref_path(:, 1) - world.ego.x));
                     y_centerline = ref_path(nearest_r, 2);
-                    if world.ego.x > (obj.x_recenter_start + L_lc_recenter_check) || (world.ego.x > (obj.x_recenter_start + 4.0) && abs(world.ego.y - y_centerline) <= 0.15)
+                    if world.ego.x > (obj.x_recenter_start + L_lc_recenter_check) || ...
+                       (world.ego.x > (obj.x_recenter_start + 12.0) && abs(world.ego.y - y_centerline) <= 0.15 && abs(world.ego.theta) <= 0.05)
                         obj.x_recenter_start = -1;
                         obj.y_recenter_start = -1;
                     end
@@ -246,7 +255,7 @@ classdef Stage5CoordinationController < handle
                 end
                 L_lc = max(8.0, min(14.0, d_obs_ahead - 2.5));
                 y_centerline = ref_path(1, 2);
-                target_y_ov = max(y_centerline + 2.10, world.ego.y);
+                target_y_ov = min(4.25, max(y_centerline + 2.10, min(4.25, world.ego.y)));
                 y_start_ov = obj.y_overtake_start;
                 if y_start_ov < 0, y_start_ov = y_centerline; end
                 dy_ov = target_y_ov - y_start_ov;
@@ -262,7 +271,7 @@ classdef Stage5CoordinationController < handle
                 end
             elseif obj.x_recenter_start > 0
                 ref_path_coord = ref_path;
-                L_lc_recenter = max(25.0, 3.5 * world.ego.v);
+                L_lc_recenter = max(25.0, 3.5 * max(world.ego.v, 2.0));
                 y_start = obj.y_recenter_start;
                 if y_start < 0, y_start = 3.35; end
                 for r = 1:size(ref_path_coord, 1)
