@@ -184,9 +184,16 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     history.steering_error = zeros(N_steps, 1);
     history.acceleration_error = zeros(N_steps, 1);
     
-    % Traffic Ecosystem Telemetry Arrays
+    % Traffic Ecosystem & Multi-Agent Processing Telemetry Arrays
     history.n_world_agents = zeros(N_steps, 1);
     history.n_observed_agents = zeros(N_steps, 1);
+    history.n_detected_agents = zeros(N_steps, 1);
+    history.n_predicted_agents = zeros(N_steps, 1);
+    history.n_interacting_agents = zeros(N_steps, 1);
+    history.n_planner_relevant_agents = zeros(N_steps, 1);
+    history.observed_classes = cell(N_steps, 1);
+    history.n_observed_classes = zeros(N_steps, 1);
+    history.macro_intent = cell(N_steps, 1);
     
     hard_qp_count = 0; soft_qp_count = 0; safety_rejected_count = 0; emergency_braking_count = 0;
     
@@ -264,8 +271,33 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         history.n_world_agents(k) = world.n_agents;
         history.n_observed_agents(k) = obs_world.n_agents;
         
+        % Track unique observed heterogeneous classes
+        if obs_world.n_agents > 0
+            obs_cls_list = {};
+            for o_i = 1:obs_world.n_agents
+                ag_o = obs_world.agents(o_i);
+                if isprop(ag_o, 'type') && ~isempty(ag_o.type)
+                    obs_cls_list{end+1} = ag_o.type;
+                elseif isprop(ag_o, 'class_type') && ~isempty(ag_o.class_type)
+                    obs_cls_list{end+1} = ag_o.class_type;
+                end
+            end
+            u_cls = unique(obs_cls_list);
+            history.observed_classes{k} = u_cls;
+            history.n_observed_classes(k) = length(u_cls);
+        else
+            history.observed_classes{k} = {};
+            history.n_observed_classes(k) = 0;
+        end
+        
         % Execute Stage 5 Control Step using Observed World State
         [u_cmd, pred_states, status, info] = ctrl5.step(obs_world, ref_path, v_target_nominal);
+        
+        history.n_detected_agents(k) = info.num_detected_agents;
+        history.n_predicted_agents(k) = info.num_predicted_agents;
+        history.n_interacting_agents(k) = info.num_interacting_agents;
+        history.n_planner_relevant_agents(k) = info.num_planner_relevant;
+        history.macro_intent{k} = info.macro_intent;
         
         % Track Perception Telemetry
         if world.n_agents > 0 && ~isempty(obs_structs) && obs_structs(1).agent_id > 0
@@ -625,9 +657,13 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         metrics.pedestrian_crossings = world.traffic_generator.pedestrian_crossings;
         metrics.cattle_crossings = world.traffic_generator.cattle_crossings;
         metrics.vehicles_passed_ego = world.traffic_generator.vehicles_passed_ego;
-        metrics.deferred_spawns = world.traffic_generator.deferred_spawns;
         metrics.max_simultaneous_active = max(history.n_world_agents);
         metrics.max_simultaneous_observed = max(history.n_observed_agents);
+        metrics.max_simultaneous_detected = max(history.n_detected_agents);
+        metrics.max_simultaneous_predicted = max(history.n_predicted_agents);
+        metrics.max_simultaneous_interacting = max(history.n_interacting_agents);
+        metrics.max_simultaneous_planner_relevant = max(history.n_planner_relevant_agents);
+        metrics.max_simultaneous_observed_classes = max(history.n_observed_classes);
     else
         metrics.traffic_count = world.n_agents;
         metrics.active_agent_count = world.n_agents;
@@ -638,7 +674,32 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         metrics.deferred_spawns = 0;
         metrics.max_simultaneous_active = world.n_agents;
         metrics.max_simultaneous_observed = world.n_agents;
+        metrics.max_simultaneous_detected = max(history.n_detected_agents);
+        metrics.max_simultaneous_predicted = max(history.n_predicted_agents);
+        metrics.max_simultaneous_interacting = max(history.n_interacting_agents);
+        metrics.max_simultaneous_planner_relevant = max(history.n_planner_relevant_agents);
+        metrics.max_simultaneous_observed_classes = max(history.n_observed_classes);
     end
+    
+    % Multi-Agent Hero Frame Selection (highest heterogeneous class diversity within FOV)
+    [max_cls, hero_idx] = max(history.n_observed_classes);
+    if max_cls < 4
+        [~, hero_idx] = max(history.n_observed_agents);
+    end
+    metrics.hero_frame.step = hero_idx;
+    metrics.hero_frame.time = history.t(hero_idx);
+    metrics.hero_frame.ego_x = history.ego_x(hero_idx);
+    metrics.hero_frame.ego_y = history.ego_y(hero_idx);
+    metrics.hero_frame.ego_v = history.ego_v(hero_idx);
+    metrics.hero_frame.n_world = history.n_world_agents(hero_idx);
+    metrics.hero_frame.n_observed = history.n_observed_agents(hero_idx);
+    metrics.hero_frame.n_detected = history.n_detected_agents(hero_idx);
+    metrics.hero_frame.n_predicted = history.n_predicted_agents(hero_idx);
+    metrics.hero_frame.n_interacting = history.n_interacting_agents(hero_idx);
+    metrics.hero_frame.n_planner_relevant = history.n_planner_relevant_agents(hero_idx);
+    metrics.hero_frame.observed_classes = history.observed_classes{hero_idx};
+    metrics.hero_frame.macro_intent = history.macro_intent{hero_idx};
+    metrics.hero_frame.min_clr = history.min_clearance(hero_idx);
     metrics.min_ttc = min(history.min_ttc);
     
     % Perception Metrics
@@ -699,18 +760,31 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         fprintf('     - Emergency Braking:%6d steps\n', emergency_braking_count);
         fprintf('  Avg Solve Time:        %6.2f ms/step\n', mean_solve_time);
         if strcmpi(world.traffic_mode, 'stochastic')
-            fprintf('  Continuous Traffic Ecosystem Metrics:\n');
-            fprintf('     - Max Simultaneous Active (World):  %6d\n', metrics.max_simultaneous_active);
-            fprintf('     - Max Simultaneous Observed (Ego):  %6d\n', metrics.max_simultaneous_observed);
-            fprintf('     - Total Spawned Agents:             %6d\n', metrics.traffic_count);
-            fprintf('     - Cars Spawned:                     %6d\n', metrics.agent_type_counts.car);
-            fprintf('     - Bikes Spawned:                    %6d\n', metrics.agent_type_counts.bike);
-            fprintf('     - Autos Spawned:                    %6d\n', metrics.agent_type_counts.auto);
-            fprintf('     - Pedestrians Spawned:              %6d\n', metrics.agent_type_counts.pedestrian);
-            fprintf('     - Cattle Spawned:                   %6d\n', metrics.agent_type_counts.cattle);
-            fprintf('     - Pedestrian Crossings:             %6d\n', metrics.pedestrian_crossings);
-            fprintf('     - Cattle Crossings:                 %6d\n', metrics.cattle_crossings);
-            fprintf('     - Vehicles Passed Ego:              %6d\n', metrics.vehicles_passed_ego);
+            fprintf('  Continuous Traffic Ecosystem & Multi-Agent Processing Metrics:\n');
+            fprintf('     - Max Simultaneous Active (World):    %6d\n', metrics.max_simultaneous_active);
+            fprintf('     - Max Simultaneous Observed (Ego):    %6d\n', metrics.max_simultaneous_observed);
+            fprintf('     - Max Simultaneous Detected:          %6d\n', metrics.max_simultaneous_detected);
+            fprintf('     - Max Simultaneous Predicted:         %6d\n', metrics.max_simultaneous_predicted);
+            fprintf('     - Max Simultaneous Interacting:       %6d\n', metrics.max_simultaneous_interacting);
+            fprintf('     - Max Simultaneous Planner-Relevant:  %6d\n', metrics.max_simultaneous_planner_relevant);
+            fprintf('     - Max Heterogeneous Classes in Frame: %6d\n', metrics.max_simultaneous_observed_classes);
+            fprintf('     - Total Spawned Agents:               %6d\n', metrics.traffic_count);
+            fprintf('     - Cars Spawned:                       %6d\n', metrics.agent_type_counts.car);
+            fprintf('     - Bikes Spawned:                      %6d\n', metrics.agent_type_counts.bike);
+            fprintf('     - Autos Spawned:                      %6d\n', metrics.agent_type_counts.auto);
+            fprintf('     - Pedestrians Spawned:                %6d\n', metrics.agent_type_counts.pedestrian);
+            fprintf('     - Cattle Spawned:                     %6d\n', metrics.agent_type_counts.cattle);
+            fprintf('     - Pedestrian Crossings:               %6d\n', metrics.pedestrian_crossings);
+            fprintf('     - Cattle Crossings:                   %6d\n', metrics.cattle_crossings);
+            fprintf('     - Vehicles Passed Ego:                %6d\n', metrics.vehicles_passed_ego);
+            fprintf('  Multi-Agent Hero Frame Snapshot:\n');
+            fprintf('     - Hero Timestep:                      Step %d (t = %.2f s)\n', metrics.hero_frame.step, metrics.hero_frame.time);
+            fprintf('     - Ego Position:                       (x = %.2f m, y = %.2f m, v = %.2f m/s)\n', metrics.hero_frame.ego_x, metrics.hero_frame.ego_y, metrics.hero_frame.ego_v);
+            fprintf('     - Agents Simultaneously Observed:     %d\n', metrics.hero_frame.n_observed);
+            fprintf('     - Agents Simultaneously Detected:     %d\n', metrics.hero_frame.n_detected);
+            fprintf('     - Agents Simultaneously Predicted:    %d\n', metrics.hero_frame.n_predicted);
+            fprintf('     - Heterogeneous Classes Present:      %s\n', strjoin(metrics.hero_frame.observed_classes, ', '));
+            fprintf('     - Macro Intent & Clearance:           %s (min_clr = +%.3f m)\n', metrics.hero_frame.macro_intent, metrics.hero_frame.min_clr);
         end
         if emergency_braking_count > 0
             reasons = unique(history.failure_reason(history.solver_status == 0));

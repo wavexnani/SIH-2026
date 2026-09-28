@@ -339,6 +339,15 @@ classdef Stage5CoordinationController < handle
             info.coord_reason = decision.reason;
             info.min_ttc = min_ttc;
             info.n_detected_vehicles = length(detections);
+            info.num_observed_agents = world.n_agents;
+            info.num_detected_agents = length(detections);
+            info.num_predicted_agents = length(preds);
+            info.num_interacting_agents = length(interactions);
+            info.num_planner_relevant = world_coord.n_agents;
+            info.planner_relevant_ids = [];
+            if world_coord.n_agents > 0 && isprop(world_coord.agents(1), 'id')
+                info.planner_relevant_ids = [world_coord.agents.id];
+            end
             info.filter_active = filter_active;
             info.filter_reason = filter_reason;
             info.steer_info = steer_info;
