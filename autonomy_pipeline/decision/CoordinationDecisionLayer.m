@@ -107,7 +107,8 @@ classdef CoordinationDecisionLayer < handle
             min_lead_dx = inf;
             for i = 1:length(detections)
                 det = detections(i);
-                if ~strcmp(det.type, 'pothole') && det.is_ahead && det.is_same_lane && det.dx < min_lead_dx
+                is_lane_target = det.is_same_lane || (strcmp(det.type, 'auto') && det.dx <= 25.0 && abs(det.dy) <= 1.45);
+                if ~strcmp(det.type, 'pothole') && det.is_ahead && is_lane_target && det.dx < min_lead_dx
                     min_lead_dx = det.dx;
                     lead_idx = i;
                 end

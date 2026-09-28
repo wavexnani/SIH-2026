@@ -226,6 +226,7 @@ classdef WorldState
         function obj = stepAgents(obj, dt)
             % Update all agents (Stochastic generator, DynamicAgent closed-loop, or constant velocity)
             % Input: dt - time step (s)
+            obj.t = obj.t + dt;
             
             if strcmpi(obj.traffic_mode, 'stochastic') && ~isempty(obj.traffic_generator)
                 % Stochastic online traffic evolution

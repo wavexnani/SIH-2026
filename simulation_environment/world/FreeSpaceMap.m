@@ -92,7 +92,11 @@ classdef FreeSpaceMap < handle
                 px_k = x_vec(k);
                 
                 % 1. Outer road boundaries at px_k
-                [y_min_road, y_max_road] = obj.getRoadBoundsAt(px_k);
+                if nargin >= 3 && ~isempty(obs_world) && isprop(obs_world, 'road_geometry') && ~isempty(obs_world.road_geometry)
+                    [y_min_road, y_max_road] = obs_world.road_geometry.getBounds(px_k);
+                else
+                    [y_min_road, y_max_road] = obj.getRoadBoundsAt(px_k);
+                end
                 y_min_k = y_min_road + half_W;
                 y_max_k = y_max_road - half_W;
                 

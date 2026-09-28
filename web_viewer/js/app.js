@@ -373,112 +373,171 @@ document.addEventListener('DOMContentLoaded', () => {
       const ctx = this.ctx;
       const s = this.scale;
       const meta = this.data.metadata || {};
-      const hasCurve = meta.curve_amp && meta.curve_amp > 0;
       const yCenterBase = (meta.road_bounds ? (meta.road_bounds[2] + meta.road_bounds[3]) / 2 : width / 2);
       const halfW = width / 2;
+      const noiseAmp = meta.boundary_noise_amp || 0.12;
+      const curveAmp = meta.curve_amp || 2.80;
 
-      if (!hasCurve) {
-        // Road asphalt surface
-        ctx.fillStyle = '#161b22';
-        ctx.fillRect(-20 * s, 0, (length + 40) * s, width * s);
+      // Mathematical centerline function strictly adhering to RoadGeometry.m
+      const getCenter = (x) => {
+        if (x <= 60.0) {
+          return yCenterBase + 0.30 * Math.sin(2 * Math.PI * x / 80.0);
+        } else if (x <= 85.0) {
+          const ym = 0.30 * Math.sin(2 * Math.PI * x / 80.0);
+          const sIn = (x - 60.0) / 25.0;
+          const wBr = 3.0 * sIn * sIn - 2.0 * sIn * sIn * sIn;
+          return yCenterBase + (1.0 - wBr) * ym;
+        } else if (x <= 106.0) {
+          return yCenterBase;
+        } else {
+          const dx = x - 106.0;
+          const LTurn = 48.0;
+          if (dx < LTurn) {
+            const sNorm = dx / LTurn;
+            const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
+            return yCenterBase + curveAmp * S;
+          } else {
+            return yCenterBase + curveAmp;
+          }
+        }
+      };
 
-        // Outer Road Boundaries
-        ctx.strokeStyle = '#484f58';
-        ctx.lineWidth = 3;
+      const xMin = -25;
+      const xMax = length + 25;
+      const stepX = 1.0;
+
+      // 1. Off-Road Dirt Shoulder & Vegetation Background
+      ctx.save();
+      // Lower dirt shoulder
+      ctx.fillStyle = '#423124';
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const yDirtBot = yc - halfW - 3.5;
+        if (x === xMin) ctx.moveTo(x * s, yDirtBot * s);
+        else ctx.lineTo(x * s, yDirtBot * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const yBot = yc - halfW;
+        ctx.lineTo(x * s, yBot * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Upper dirt shoulder
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const yTop = yc + halfW;
+        if (x === xMin) ctx.moveTo(x * s, yTop * s);
+        else ctx.lineTo(x * s, yTop * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const yDirtTop = yc + halfW + 3.5;
+        ctx.lineTo(x * s, yDirtTop * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Roadside grass tufts along dirt shoulder
+      for (let x = xMin; x <= xMax; x += 6.0) {
+        const yc = getCenter(x);
+        const yGrassBot = yc - halfW - 2.2 + 0.4 * Math.sin(x * 1.7);
+        const yGrassTop = yc + halfW + 2.2 + 0.4 * Math.cos(x * 1.9);
         
-        // Bottom Boundary (y=0)
+        ctx.fillStyle = '#2d3b25';
         ctx.beginPath();
-        ctx.moveTo(-20 * s, 0);
-        ctx.lineTo((length + 40) * s, 0);
-        ctx.stroke();
-
-        // Top Boundary (y=width)
-        ctx.beginPath();
-        ctx.moveTo(-20 * s, width * s);
-        ctx.lineTo((length + 40) * s, width * s);
-        ctx.stroke();
-
-        // Center Lane Divider Line (Dashed)
-        ctx.strokeStyle = '#30363d';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        ctx.moveTo(-20 * s, (width / 2) * s);
-        ctx.lineTo((length + 40) * s, (width / 2) * s);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else {
-        const amp = meta.curve_amp;
-        const lambda = meta.curve_lambda || 80.0;
-        const xStart = meta.curve_x_start !== undefined ? meta.curve_x_start : 20.0;
-        const noise = meta.boundary_noise_amp || 0.0;
-
-        const getCenter = (x) => {
-          if (x < xStart) return yCenterBase;
-          const dx = x - xStart;
-          const sRamp = Math.min(1.0, dx / 15.0);
-          const env = 3.0 * sRamp * sRamp - 2.0 * sRamp * sRamp * sRamp;
-          return yCenterBase + env * amp * Math.sin(2 * Math.PI * dx / lambda);
-        };
-
-        const xMin = -20;
-        const xMax = length + 40;
-        const stepX = 1.0;
-
-        // Draw curved asphalt polygon
-        ctx.fillStyle = '#161b22';
-        ctx.beginPath();
-        for (let x = xMin; x <= xMax; x += stepX) {
-          const yc = getCenter(x);
-          const yBot = yc - halfW + (noise > 0 ? noise * Math.cos(x / 9.0 + 1.2) : 0);
-          if (x === xMin) ctx.moveTo(x * s, yBot * s);
-          else ctx.lineTo(x * s, yBot * s);
-        }
-        for (let x = xMax; x >= xMin; x -= stepX) {
-          const yc = getCenter(x);
-          const yTop = yc + halfW + (noise > 0 ? noise * Math.sin(x / 7.0 + 0.4) : 0);
-          ctx.lineTo(x * s, yTop * s);
-        }
-        ctx.closePath();
+        ctx.ellipse(x * s, yGrassBot * s, 1.2 * s, 0.6 * s, 0.2, 0, 2 * Math.PI);
         ctx.fill();
 
-        // Outer boundaries
-        ctx.strokeStyle = '#484f58';
-        ctx.lineWidth = 3;
-
-        // Bottom boundary
+        ctx.fillStyle = '#35452b';
         ctx.beginPath();
-        for (let x = xMin; x <= xMax; x += stepX) {
-          const yc = getCenter(x);
-          const yBot = yc - halfW + (noise > 0 ? noise * Math.cos(x / 9.0 + 1.2) : 0);
-          if (x === xMin) ctx.moveTo(x * s, yBot * s);
-          else ctx.lineTo(x * s, yBot * s);
-        }
-        ctx.stroke();
-
-        // Top boundary
-        ctx.beginPath();
-        for (let x = xMin; x <= xMax; x += stepX) {
-          const yc = getCenter(x);
-          const yTop = yc + halfW + (noise > 0 ? noise * Math.sin(x / 7.0 + 0.4) : 0);
-          if (x === xMin) ctx.moveTo(x * s, yTop * s);
-          else ctx.lineTo(x * s, yTop * s);
-        }
-        ctx.stroke();
-
-        // Center line (dashed)
-        ctx.strokeStyle = '#30363d';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        for (let x = xMin; x <= xMax; x += stepX) {
-          const yc = getCenter(x);
-          if (x === xMin) ctx.moveTo(x * s, yc * s);
-          else ctx.lineTo(x * s, yc * s);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.ellipse((x + 2.0) * s, yGrassTop * s, 1.4 * s, 0.7 * s, -0.2, 0, 2 * Math.PI);
+        ctx.fill();
       }
+      ctx.restore();
+
+      // 2. Realistic Asphalt Surface with Organic Eroded Edges
+      ctx.save();
+      ctx.fillStyle = '#1c2128';
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.cos(x / 7.8 + 0.8) + 0.4 * Math.sin(x / 2.9)) : 0);
+        const yBot = yc - halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yBot * s);
+        else ctx.lineTo(x * s, yBot * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.sin(x / 6.5 + 0.3) + 0.4 * Math.cos(x / 3.2)) : 0);
+        const yTop = yc + halfW + jitter;
+        ctx.lineTo(x * s, yTop * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Dark Tire Compaction Wheel Ruts (Traffic Tracks)
+      ctx.strokeStyle = '#12161c';
+      ctx.lineWidth = 1.3 * s;
+      ctx.lineCap = 'round';
+      // Lower lane tire tracks (y_c - 1.20m)
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX * 2) {
+        const yc = getCenter(x);
+        const yRut = yc - 1.20;
+        if (x === xMin) ctx.moveTo(x * s, yRut * s);
+        else ctx.lineTo(x * s, yRut * s);
+      }
+      ctx.stroke();
+      // Upper lane tire tracks (y_c + 1.20m)
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX * 2) {
+        const yc = getCenter(x);
+        const yRut = yc + 1.20;
+        if (x === xMin) ctx.moveTo(x * s, yRut * s);
+        else ctx.lineTo(x * s, yRut * s);
+      }
+      ctx.stroke();
+
+      // Crumbling Eroded Shoulder Outline
+      ctx.strokeStyle = '#574332';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.cos(x / 7.8 + 0.8) + 0.4 * Math.sin(x / 2.9)) : 0);
+        const yBot = yc - halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yBot * s);
+        else ctx.lineTo(x * s, yBot * s);
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.sin(x / 6.5 + 0.3) + 0.4 * Math.cos(x / 3.2)) : 0);
+        const yTop = yc + halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yTop * s);
+        else ctx.lineTo(x * s, yTop * s);
+      }
+      ctx.stroke();
+
+      // Faded, Weathered Road Centerline (Sun-bleached dashes with irregular wear)
+      ctx.strokeStyle = 'rgba(210, 180, 140, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([8, 12]);
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        if (x === xMin) ctx.moveTo(x * s, yc * s);
+        else ctx.lineTo(x * s, yc * s);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
     },
 
     drawPotholes(potholes) {
@@ -492,30 +551,65 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.translate(p.x * s, p.y * s);
 
-        // Pothole hole depression
-        ctx.fillStyle = '#090d13';
-        ctx.strokeStyle = '#8b949e';
+        const rx = (p.length / 2) * s;
+        const ry = (p.width / 2) * s;
+
+        // Broken asphalt fractured rim
+        ctx.fillStyle = '#11151a';
+        ctx.strokeStyle = '#6e7681';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.ellipse(0, 0, (p.length / 2) * s, (p.width / 2) * s, 0, 0, 2 * Math.PI);
+        const nPoints = 14;
+        for (let i = 0; i < nPoints; i++) {
+          const angle = (i / nPoints) * 2 * Math.PI;
+          const rVar = 0.85 + 0.30 * Math.sin(angle * 3.5 + p.id);
+          const px = Math.cos(angle) * rx * rVar;
+          const py = Math.sin(angle) * ry * rVar;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Inner hazard border
-        ctx.strokeStyle = 'rgba(248, 81, 73, 0.7)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
+        // Inner murky water puddle reflection
+        ctx.fillStyle = '#0a1017';
         ctx.beginPath();
-        ctx.ellipse(0, 0, (p.length / 2.5) * s, (p.width / 2.5) * s, 0, 0, 2 * Math.PI);
+        for (let i = 0; i < nPoints; i++) {
+          const angle = (i / nPoints) * 2 * Math.PI;
+          const rVar = 0.65 + 0.20 * Math.cos(angle * 2.5 + p.id);
+          const px = Math.cos(angle) * rx * rVar;
+          const py = Math.sin(angle) * ry * rVar;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Water specular highlight
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.arc(-rx * 0.25, -ry * 0.2, rx * 0.35, 0.2, Math.PI * 0.8);
         ctx.stroke();
+
+        // Scattered gravel pieces around rim
+        ctx.fillStyle = '#8b949e';
+        for (let g = 0; g < 6; g++) {
+          const gAngle = (g / 6) * 2 * Math.PI + 0.4;
+          const gx = Math.cos(gAngle) * (rx + 2.5);
+          const gy = Math.sin(gAngle) * (ry + 2.0);
+          ctx.fillRect(gx, gy, 1.8, 1.8);
+        }
+
         ctx.restore();
 
         // Label
         ctx.save();
         ctx.scale(1, -1);
-        ctx.fillStyle = '#8b949e';
-        ctx.font = '9px "JetBrains Mono", monospace';
-        ctx.fillText(`POT_${p.id}`, p.x * s - 10, -p.y * s - (p.width / 2) * s - 3);
+        ctx.fillStyle = '#f85149';
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.fillText(`POTHOLE #${p.id} (${p.severity || 'severe'})`, p.x * s - 18, -p.y * s - ry - 4);
         ctx.restore();
       });
     },
@@ -620,31 +714,41 @@ document.addEventListener('DOMContentLoaded', () => {
       list.forEach(sb => {
         if (!sb || sb.x === undefined) return;
         const L = sb.length || 0.8;
-        const W = sb.width || roadW;
         const yMin = 0.0;
         const yMax = roadW;
 
         ctx.save();
-        // Speed bump asphalt mound background
-        ctx.fillStyle = '#334155';
-        ctx.fillRect((sb.x - L/2) * s, yMin * s, L * s, W * s);
+        // 3D Mound shadow and raised asphalt gradient
+        const moundGrad = ctx.createLinearGradient((sb.x - L/2) * s, 0, (sb.x + L/2) * s, 0);
+        moundGrad.addColorStop(0, '#1f2937');
+        moundGrad.addColorStop(0.5, '#4b5563');
+        moundGrad.addColorStop(1, '#111827');
+        ctx.fillStyle = moundGrad;
+        ctx.fillRect((sb.x - L/2) * s, yMin * s, L * s, roadW * s);
 
-        // Alternating Yellow & Black Reflective Stripes (Indian IRC standard chevron pattern)
-        const stripeH = 0.5;
-        for (let y = yMin; y < yMax; y += stripeH * 2) {
-          ctx.fillStyle = '#facc15'; // Reflective yellow
-          ctx.fillRect((sb.x - L/2) * s, y * s, L * s, stripeH * s);
-          ctx.fillStyle = '#0f172a'; // Black contrast
-          ctx.fillRect((sb.x - L/2) * s, (y + stripeH) * s, L * s, stripeH * s);
+        // Indian IRC Standard High-Contrast Yellow/Black Chevron Arrows Pattern
+        const chevronH = 0.6;
+        for (let y = yMin; y < yMax; y += chevronH) {
+          const isYellow = (Math.floor(y / chevronH) % 2 === 0);
+          ctx.fillStyle = isYellow ? '#facc15' : '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo((sb.x - L/2) * s, y * s);
+          ctx.lineTo((sb.x + L/2 * 0.4) * s, (y + chevronH/2) * s);
+          ctx.lineTo((sb.x - L/2) * s, (y + chevronH) * s);
+          ctx.lineTo((sb.x - L/2 + 0.3) * s, (y + chevronH) * s);
+          ctx.lineTo((sb.x + L/2) * s, (y + chevronH/2) * s);
+          ctx.lineTo((sb.x - L/2 + 0.3) * s, y * s);
+          ctx.closePath();
+          ctx.fill();
         }
 
-        // White warning markings on approach (rumble stripes)
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.0;
-        for (let dX of [-3.0, -2.0, -1.0, 1.0, 2.0, 3.0]) {
+        // White approach rumble warning stripes
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1.5;
+        for (let dX of [-3.5, -2.5, -1.5, 1.5, 2.5, 3.5]) {
           ctx.beginPath();
-          ctx.moveTo((sb.x + dX) * s, yMin * s);
-          ctx.lineTo((sb.x + dX) * s, yMax * s);
+          ctx.moveTo((sb.x + dX) * s, (yMin + 0.2) * s);
+          ctx.lineTo((sb.x + dX) * s, (yMax - 0.2) * s);
           ctx.stroke();
         }
         ctx.restore();
@@ -653,8 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.scale(1, -1);
         ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 9px "JetBrains Mono", monospace';
-        ctx.fillText(`SPEED BUMP (${sb.x}m)`, (sb.x - 4.0) * s, -(yMax + 0.5) * s);
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.fillText(`IRC SPEED BUMP (${sb.x}m)`, (sb.x - 5.0) * s, -(yMax + 0.6) * s);
         ctx.restore();
       });
     },
@@ -684,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!minVec.length) return;
 
       const N = minVec.length;
-      const dx = 0.5; // step increment along horizon
+      const dx = 0.5;
 
       ctx.fillStyle = 'rgba(63,185,80,0.08)';
       ctx.strokeStyle = 'rgba(63,185,80,0.4)';
@@ -739,7 +843,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.lineWidth = 2.5;
 
       ctx.beginPath();
-      // Handle both matrix form [N_p x 4] or struct array
       for (let k = 0; k < traj.length; k++) {
         let px, py;
         if (Array.isArray(traj[k])) {
@@ -752,7 +855,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       ctx.stroke();
 
-      // Planned horizon dots
       ctx.fillStyle = '#58a6ff';
       for (let k = 0; k < traj.length; k += 2) {
         let px, py;
@@ -800,6 +902,300 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     },
 
+    drawAutoRickshawSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Lower Body Panels (Forest Green)
+      ctx.fillStyle = '#15803d';
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfL, 0); // Front nose
+      ctx.lineTo(halfL * 0.35, halfW); // Front-to-side taper
+      ctx.lineTo(-halfL, halfW); // Rear left
+      ctx.lineTo(-halfL, -halfW); // Rear right
+      ctx.lineTo(halfL * 0.35, -halfW); // Side-to-front taper
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 2. Yellow Canvas Roof Canopy
+      ctx.fillStyle = '#eab308';
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.5, 0);
+      ctx.lineTo(halfL * 0.15, halfW * 0.88);
+      ctx.lineTo(-halfL * 0.85, halfW * 0.88);
+      ctx.lineTo(-halfL * 0.85, -halfW * 0.88);
+      ctx.lineTo(halfL * 0.15, -halfW * 0.88);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Roof canvas ribs
+      ctx.strokeStyle = '#a16207';
+      ctx.lineWidth = 1.0;
+      for (let rx of [-halfL * 0.6, -halfL * 0.2, halfL * 0.1]) {
+        ctx.beginPath();
+        ctx.moveTo(rx, -halfW * 0.85);
+        ctx.lineTo(rx, halfW * 0.85);
+        ctx.stroke();
+      }
+
+      // 3. Curved Windshield with Wiper
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.45, -halfW * 0.55);
+      ctx.lineTo(halfL * 0.65, 0);
+      ctx.lineTo(halfL * 0.45, halfW * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Wiper
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.52, 0);
+      ctx.lineTo(halfL * 0.48, halfW * 0.35);
+      ctx.stroke();
+
+      // 4. Wheels & Mudguards
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect((halfL - 2), -halfW * 0.2, 4, halfW * 0.4);
+      ctx.fillRect((-halfL + 2), halfW - 2, halfL * 0.45, 3.5);
+      ctx.fillRect((-halfL + 2), -halfW - 1.5, halfL * 0.45, 3.5);
+
+      // Rear spare tire mount
+      ctx.beginPath();
+      ctx.arc(-halfL, 0, halfW * 0.35, 0, 2 * Math.PI);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.stroke();
+
+      // Front Headlamp
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL + 1, 0, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawCattleSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Torso & Flanks (Earthy mottled hide)
+      ctx.fillStyle = '#a05a2c';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, halfL * 0.75, halfW * 0.75, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Mottled hide patch
+      ctx.fillStyle = '#f5ebe0';
+      ctx.beginPath();
+      ctx.ellipse(-halfL * 0.2, halfW * 0.2, halfL * 0.3, halfW * 0.35, 0.4, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 2. Thoracic Shoulder Hump (Zebu hump)
+      ctx.fillStyle = '#854d0e';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.25, 0, halfW * 0.55, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 3. Bovine Head & Snout
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.8, 0, halfL * 0.32, halfW * 0.45, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Muzzle & Nostrils
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 1.05, 0, halfL * 0.14, halfW * 0.32, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#1c1917';
+      ctx.fillRect(halfL * 1.08, -halfW * 0.15, 1.8, 1.8);
+      ctx.fillRect(halfL * 1.08, halfW * 0.15 - 1.8, 1.8, 1.8);
+
+      // Drooping Ears
+      ctx.fillStyle = '#9a3412';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.65, halfW * 0.58, halfL * 0.18, halfW * 0.22, 0.6, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.65, -halfW * 0.58, halfL * 0.18, halfW * 0.22, -0.6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 4. Curved Ivory Horns with Dark Tips
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.65, halfW * 0.35);
+      ctx.quadraticCurveTo(halfL * 0.95, halfW * 0.85, halfL * 0.8, halfW * 1.15);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.65, -halfW * 0.35);
+      ctx.quadraticCurveTo(halfL * 0.95, -halfW * 0.85, halfL * 0.8, -halfW * 1.15);
+      ctx.stroke();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.8, halfW * 1.15, 1.6, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.8, -halfW * 1.15, 1.6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 5. Tail
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-halfL * 0.75, 0);
+      ctx.quadraticCurveTo(-halfL * 1.05, halfW * 0.35, -halfL * 1.25, halfW * 0.2);
+      ctx.stroke();
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(-halfL * 1.25, halfW * 0.2, 2.2, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawMotorcycleSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Spoked Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 0.55, -halfW * 0.22, halfL * 0.45, halfW * 0.44);
+      ctx.fillRect(-halfL * 0.95, -halfW * 0.22, halfL * 0.45, halfW * 0.44);
+
+      // Chassis & Fuel Tank
+      ctx.fillStyle = '#4f46e5';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.15, 0, halfL * 0.35, halfW * 0.45, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Chrome exhaust
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.1, -halfW * 0.55);
+      ctx.lineTo(-halfL * 0.9, -halfW * 0.55);
+      ctx.stroke();
+
+      // Handlebars & Mirrors
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.45, -halfW * 0.85);
+      ctx.lineTo(halfL * 0.45, halfW * 0.85);
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.52, -halfW * 0.95, 1.8, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.52, halfW * 0.95, 1.8, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Rider Torso
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.ellipse(-halfL * 0.1, 0, halfL * 0.35, halfW * 0.65, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Safety Helmet
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.45, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Visor
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.45, -Math.PI * 0.25, Math.PI * 0.25);
+      ctx.fill();
+
+      // Headlamp
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL, 0, 2.2, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawPedestrianSprite(ctx, s, L, W, ag) {
+      const r = (Math.max(L, W) / 2) * s;
+      const isCrossing = (ag.behavior_state || '').includes('CROSS');
+
+      ctx.fillStyle = isCrossing ? '#ef4444' : '#10b981';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.9, r * 1.35, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.72, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, -r * 1.2);
+      ctx.lineTo(r * 0.6, -r * 0.9);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, r * 1.2);
+      ctx.lineTo(-r * 0.6, r * 0.9);
+      ctx.stroke();
+    },
+
+    drawCarSprite(ctx, s, L, W, isLead, isOncoming) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      const carCol = isLead ? '#3b82f6' : (isOncoming ? '#f97316' : '#64748b');
+      ctx.fillStyle = carCol;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-halfL, -halfW, L * s, W * s, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.55, -halfW * 0.8, halfL * 1.1, halfW * 1.6, 3);
+      ctx.fill();
+
+      ctx.fillStyle = carCol;
+      ctx.fillRect(-halfL * 0.25, -halfW * 0.7, halfL * 0.7, halfW * 1.4);
+
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.5, -halfW * 0.75);
+      ctx.lineTo(halfL * 0.22, -halfW * 0.7);
+      ctx.lineTo(halfL * 0.22, halfW * 0.7);
+      ctx.lineTo(halfL * 0.5, halfW * 0.75);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(halfL - 2, halfW * 0.55, 2.5, halfW * 0.35);
+      ctx.fillRect(halfL - 2, -halfW * 0.9, 2.5, halfW * 0.35);
+
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-halfL, halfW * 0.6, 2, halfW * 0.3);
+      ctx.fillRect(-halfL, -halfW * 0.9, 2, halfW * 0.3);
+    },
+
     drawGroundTruthAgents(agents) {
       const ctx = this.ctx;
       const s = this.scale;
@@ -812,66 +1208,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const heading = (ag.heading !== undefined) ? ag.heading : Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
         const type = (ag.type || 'car').toLowerCase();
 
-        // Distinct styling per traffic class
-        let fillCol = '#f0883e'; // CAR: orange
-        let strokeCol = '#d29922';
-        let shapeType = 'rect';
-
-        if (type === 'bike' || type === 'motorcycle') {
-          fillCol = '#a371f7'; // BIKE: purple
-          strokeCol = '#bc8cff';
-        } else if (type === 'auto' || type === 'autorickshaw') {
-          fillCol = '#d29922'; // AUTO: amber/yellow
-          strokeCol = '#e3b341';
-        } else if (type === 'pedestrian' || type === 'ped') {
-          fillCol = '#3fb950'; // PEDESTRIAN: green
-          strokeCol = '#56d364';
-          shapeType = 'circle';
-        } else if (type === 'cattle') {
-          fillCol = '#a05a2c'; // CATTLE: earthy brown
-          strokeCol = '#d4a373';
-          shapeType = 'oval';
-        }
-
         ctx.save();
         ctx.translate(ag.x * s, ag.y * s);
         ctx.rotate(heading);
 
-        ctx.fillStyle = fillCol;
-        ctx.strokeStyle = strokeCol;
-        ctx.lineWidth = 1.5;
-
-        if (shapeType === 'circle') {
-          ctx.beginPath();
-          ctx.arc(0, 0, (Math.max(L, W) / 2) * s, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
-        } else if (shapeType === 'oval') {
-          ctx.beginPath();
-          ctx.ellipse(0, 0, (L / 2) * s, (W / 2) * s, 0, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
+        if (type === 'auto' || type === 'autorickshaw') {
+          this.drawAutoRickshawSprite(ctx, s, L, W);
+        } else if (type === 'cattle') {
+          this.drawCattleSprite(ctx, s, L, W);
+        } else if (type === 'bike' || type === 'motorcycle') {
+          this.drawMotorcycleSprite(ctx, s, L, W);
+        } else if (type === 'pedestrian' || type === 'ped') {
+          this.drawPedestrianSprite(ctx, s, L, W, ag);
         } else {
-          ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
-          ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+          const isLead = (ag.id_str === 'CAR_LEAD');
+          const isOncoming = (ag.id_str && ag.id_str.includes('ONCOMING'));
+          this.drawCarSprite(ctx, s, L, W, isLead, isOncoming);
         }
-
-        // Heading / Direction Indicator
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        const noseX = (shapeType === 'circle' ? (Math.max(L, W) / 2 - 0.15) : (L / 2 - 0.25));
-        ctx.arc(noseX * s, 0, 1.8, 0, 2 * Math.PI);
-        ctx.fill();
 
         ctx.restore();
 
-        // Label (unrotated text)
+        // Agent State Label
         ctx.save();
         ctx.scale(1, -1);
-        ctx.fillStyle = strokeCol;
-        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
         const labelText = ag.id_str || `A${ag.id}`;
-        ctx.fillText(labelText, ag.x * s - 8, -ag.y * s - (W / 2) * s - 4);
+        ctx.fillText(labelText, ag.x * s - 12, -ag.y * s - (W / 2) * s - 5);
         ctx.restore();
       });
     },
@@ -889,37 +1252,67 @@ document.addEventListener('DOMContentLoaded', () => {
       const fwdRange = 50.0;
       const rearRange = 15.0;
       const latRange = 6.0;
-      ctx.fillStyle = 'rgba(88, 166, 255, 0.03)';
-      ctx.strokeStyle = 'rgba(88, 166, 255, 0.22)';
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.04)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.fillRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
       ctx.strokeRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
       ctx.setLineDash([]);
 
-      // Ego Body
-      ctx.fillStyle = '#58a6ff';
-      ctx.strokeStyle = '#388bfd';
-      ctx.lineWidth = 2;
-      ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
-      ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Realistic Autonomous Vehicle Body (Metallic Blue)
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0369a1';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(-halfL, -halfW, L * s, W * s, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      // Dark Glass Roof & Cabin Greenhouse
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.5, -halfW * 0.8, halfL * 1.05, halfW * 1.6, 3);
+      ctx.fill();
+
+      // Autonomous Roof Sensor Pod (LiDAR Puck)
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.32, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Forward Headlamps Beam
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(halfL - 2, halfW * 0.6, 3, halfW * 0.3);
+      ctx.fillRect(halfL - 2, -halfW * 0.9, 3, halfW * 0.3);
+
+      // Red Tail Lamps
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-halfL, halfW * 0.65, 2.5, halfW * 0.25);
+      ctx.fillRect(-halfL, -halfW * 0.9, 2.5, halfW * 0.25);
 
       // Heading Vector Line
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.lineTo((L/2 + 1.2) * s, 0);
+      ctx.lineTo((halfL + 18), 0);
       ctx.stroke();
 
       ctx.restore();
 
-      // Ego Label
+      // Ego Speed & Position Label
       ctx.save();
       ctx.scale(1, -1);
-      ctx.fillStyle = '#58a6ff';
+      ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 11px "JetBrains Mono", monospace';
-      ctx.fillText(`EGO (${ego.v ? ego.v.toFixed(1) : '0.0'} m/s)`, ego.x * s - 25, -ego.y * s - W/2 * s - 6);
+      ctx.fillText(`EGO (${ego.v ? ego.v.toFixed(1) : '0.0'} m/s)`, ego.x * s - 25, -ego.y * s - W/2 * s - 7);
       ctx.restore();
     },
 

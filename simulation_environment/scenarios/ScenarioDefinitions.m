@@ -961,9 +961,9 @@ function world = scenario_handdrawn_village_canal(world, cfg, varargin)
     % Road Geometry (160m total, bridge at 92-106m, upward curve after bridge at x=106m)
     world.road_geometry = RoadGeometry('unstructured', 'road_length', 160.0, ...
                                        'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
-                                       'curve_amp', 3.5, 'curve_lambda', 80.0, 'grade_slope', 0.01);
+                                       'curve_amp', 2.80, 'curve_lambda', 80.0, 'grade_slope', 0.01);
     world.road_geometry.curve_x_start = 106.0;
-    world.road_geometry.boundary_noise_amp = 0.06;
+    world.road_geometry.boundary_noise_amp = 0.12;
     world.road_geometry.setBridgeCanal(92.0, 106.0, 5.2);
     world.road_length = 160.0;
     world.road_width = cfg.road_width;
@@ -971,7 +971,7 @@ function world = scenario_handdrawn_village_canal(world, cfg, varargin)
     
     % Add Potholes from sketch
     world.road_geometry.addPothole(1, 22.0, 1.80, 2.0, 1.3, 0.10, 'severe');  % Pothole 1
-    world.road_geometry.addPothole(2, 84.0, 1.10, 1.4, 1.0, 0.08, 'moderate'); % Pothole 2
+    world.road_geometry.addPothole(2, 84.0, 0.85, 1.4, 1.0, 0.08, 'moderate'); % Pothole 2
     world.potholes = world.road_geometry.potholes;
     
     % Add Speed Breaker from sketch

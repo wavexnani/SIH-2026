@@ -127,9 +127,13 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     v_target_nominal = 8.0;
     
     % Generate Nominal Center Reference Path (conforming to road geometry curvature)
-    N_path = 500;
+    road_len = config.road_length;
+    if isprop(world, 'road_length') && ~isempty(world.road_length)
+        road_len = world.road_length;
+    end
+    N_path = 600;
     ref_path = zeros(N_path, 5);
-    ref_path(:, 1) = linspace(0, 150, N_path)';
+    ref_path(:, 1) = linspace(0, road_len, N_path)';
     if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0
         y_offset_lane = world.ego.y - world.road_geometry.y_center_base;
         for r = 1:N_path
@@ -246,8 +250,12 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         simMeta.grade_slope = 0.0;
         simMeta.boundary_noise_amp = 0.0;
     end
-    simMeta.road_bounds = [0, config.road_length, config.road_center_y - config.road_width/2, config.road_center_y + config.road_width/2];
-    simMeta.road_length = config.road_length;
+    road_len_meta = config.road_length;
+    if isprop(world, 'road_length') && ~isempty(world.road_length)
+        road_len_meta = world.road_length;
+    end
+    simMeta.road_bounds = [0, road_len_meta, config.road_center_y - config.road_width/2, config.road_center_y + config.road_width/2];
+    simMeta.road_length = road_len_meta;
     simMeta.road_width = config.road_width;
     simMeta.vehicle_length = config.vehicle_length;
     simMeta.vehicle_width = config.vehicle_width;

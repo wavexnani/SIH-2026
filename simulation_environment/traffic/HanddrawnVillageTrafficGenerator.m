@@ -57,31 +57,42 @@ classdef HanddrawnVillageTrafficGenerator < handle
             % POPULATESCENE Initializes the agents according to the hand-drawn blueprint
             obj.active_agents = [];
             
+            % Helper to query centerline if road_geom provided
+            getYc = @(x_val) 3.0;
+            if nargin >= 2 && ~isempty(road_geom) && ismethod(road_geom, 'getCenterline')
+                getYc = @(x_val) road_geom.getCenterline(x_val);
+            end
+            
             % Agent 1: Fast Bike (Overtaking Ego, squeezing through bottleneck)
-            % Starts behind/beside ego in upper lane (y=4.2m), v=10.5 m/s
-            ag1 = TrafficAgent(1, 'bike', 3.0, 4.20, 10.5, 1);
+            % Starts behind/beside ego in upper lane, v=10.5 m/s
+            y_c1 = getYc(3.0);
+            ag1 = TrafficAgent(1, 'bike', 3.0, y_c1 + 1.20, 10.5, 1);
             ag1.id_str = 'BIKE_001';
             ag1.v_target = 10.5;
             ag1.behavior_state = 'CRUISING';
             
             % Agent 2: Auto-Rickshaw (Slowing down and stopping to drop passenger)
             % Starts ahead in right lane (y=2.2m), v=3.5 m/s
-            ag2 = TrafficAgent(2, 'auto', 22.0, 2.20, 3.5, 1);
+            y_c2 = getYc(22.0);
+            ag2 = TrafficAgent(2, 'auto', 22.0, y_c2 - 0.80, 3.5, 1);
             ag2.id_str = 'AUTO_002';
             ag2.v_target = 0.0; % Decelerating to stop
             ag2.y_target = 0.85; % Pulling to lower shoulder
             ag2.behavior_state = 'DECELERATING_TO_STOP';
             
             % Agent 4: Oncoming Car 1 (Approaching opposing lane, squeezing bottleneck)
-            % Starts at x=34m, y=4.4m, v=-6.5 m/s
-            ag4 = TrafficAgent(4, 'car', 34.0, 4.40, 6.5, -1);
+            % Starts at x=34m, opposing lane, v=-6.5 m/s
+            y_c4 = getYc(34.0);
+            ag4 = TrafficAgent(4, 'car', 34.0, y_c4 + 1.30, 6.5, -1);
             ag4.id_str = 'CAR_ONCOMING_1';
             ag4.v_target = 6.5;
             ag4.behavior_state = 'YIELD_BOTTLENECK';
+            ag4.theta = pi;
             
             % Agent 5: Lead Car (Ahead of auto, cruising then braking for speed breaker)
-            % Starts at x=48m, y=1.8m, v=4.2 m/s
-            ag5 = TrafficAgent(5, 'car', 48.0, 1.80, 4.2, 1);
+            % Starts at x=48m, lower lane, v=4.2 m/s
+            y_c5 = getYc(48.0);
+            ag5 = TrafficAgent(5, 'car', 48.0, y_c5 - 1.20, 4.2, 1);
             ag5.id_str = 'CAR_LEAD';
             ag5.v_target = 4.2;
             ag5.behavior_state = 'CRUISING';
@@ -94,32 +105,38 @@ classdef HanddrawnVillageTrafficGenerator < handle
             ag6.theta = pi/2;
             
             % Agent 7: Oncoming Car 2 (Across bridge/canal, crawling over speed breaker)
-            % Starts at x=115m, y=4.3m, v=-2.4 m/s
-            ag7 = TrafficAgent(7, 'car', 115.0, 4.30, 2.4, -1);
+            % Starts at x=115m, upper lane, v=-2.4 m/s
+            y_c7 = getYc(115.0);
+            ag7 = TrafficAgent(7, 'car', 115.0, y_c7 + 1.25, 2.4, -1);
             ag7.id_str = 'CAR_ONCOMING_2';
             ag7.v_target = 2.4;
             ag7.behavior_state = 'SPEED_BREAKER_CRAWL';
+            ag7.theta = pi;
             
-            % Cattle Herd: 4 individual cows emerging from canal / roadside
-            % Cow 1 (Upper shoulder/road edge)
-            ag8 = TrafficAgent(8, 'cattle', 120.0, 4.40, 0.30, 0, 1.50);
+            % Cattle Herd: 4 individual cows on the curved road section (outer road edge & verge)
+            % Cow 1 (Upper road edge & shoulder near curve entry)
+            y_c8 = getYc(120.0);
+            ag8 = TrafficAgent(8, 'cattle', 120.0, y_c8 + 2.35, 0.15, 1);
             ag8.id_str = 'COW_01';
             ag8.behavior_state = 'GRAZING';
             
-            % Cow 2 (Centerline slow drift)
-            ag9 = TrafficAgent(9, 'cattle', 124.0, 3.30, 0.35, 0, 1.00);
+            % Cow 2 (Upper verge & road boundary)
+            y_c9 = getYc(125.0);
+            ag9 = TrafficAgent(9, 'cattle', 125.0, y_c9 + 2.45, 0.12, 1);
             ag9.id_str = 'COW_02';
-            ag9.behavior_state = 'CROSSING';
+            ag9.behavior_state = 'GRAZING';
             
-            % Cow 3 (Lower lane)
-            ag10 = TrafficAgent(10, 'cattle', 128.0, 2.20, 0.20, 0, 0.50);
+            % Cow 3 (Verge / shoulder grass)
+            y_c10 = getYc(131.0);
+            ag10 = TrafficAgent(10, 'cattle', 131.0, y_c10 + 2.55, 0.10, 1);
             ag10.id_str = 'COW_03';
             ag10.behavior_state = 'GRAZING';
             
-            % Cow 4 (Upper road curve edge)
-            ag11 = TrafficAgent(11, 'cattle', 132.0, 4.80, 0.25, 0, 5.20);
+            % Cow 4 (Upper road curve edge / shoulder)
+            y_c11 = getYc(137.0);
+            ag11 = TrafficAgent(11, 'cattle', 137.0, y_c11 + 2.50, 0.15, 1);
             ag11.id_str = 'COW_04';
-            ag11.behavior_state = 'CROSSING';
+            ag11.behavior_state = 'GRAZING';
             
             obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; ag8; ag9; ag10; ag11];
             obj.next_id = 12;
@@ -166,14 +183,24 @@ classdef HanddrawnVillageTrafficGenerator < handle
             % 2. Step Fast Bike
             bike_ag = obj.getAgentById(1);
             if ~isempty(bike_ag) && bike_ag.is_active
-                % Squeeze maneuver: stays in corridor y in [3.8, 4.2] avoiding pothole 1 (x=22, y=1.8) and auto
+                % Squeeze maneuver: stays in upper lane avoiding pothole 1 and auto
                 bike_ag.x = bike_ag.x + bike_ag.v * dt;
                 bike_ag.vx = bike_ag.v;
                 bike_ag.vy = 0.0;
-                if bike_ag.x > 26.0
-                    bike_ag.y = min(4.85, bike_ag.y + 0.4 * dt);
+                if ~isempty(road_geom)
+                    [y_c_bike, th_bike, ~] = road_geom.getCenterline(bike_ag.x);
+                    if bike_ag.x > 26.0
+                        bike_ag.y = min(y_c_bike + 1.85, bike_ag.y + 0.4 * dt);
+                    else
+                        bike_ag.y = y_c_bike + 1.10 + 0.10 * sin(bike_ag.x / 10.0);
+                    end
+                    bike_ag.theta = th_bike;
                 else
-                    bike_ag.y = 4.10 + 0.10 * sin(bike_ag.x / 10.0);
+                    if bike_ag.x > 26.0
+                        bike_ag.y = min(4.85, bike_ag.y + 0.4 * dt);
+                    else
+                        bike_ag.y = 4.10 + 0.10 * sin(bike_ag.x / 10.0);
+                    end
                 end
             end
             
@@ -182,8 +209,14 @@ classdef HanddrawnVillageTrafficGenerator < handle
             if ~isempty(car_onc1) && car_onc1.is_active
                 car_onc1.x = car_onc1.x - car_onc1.v * dt;
                 car_onc1.vx = -car_onc1.v;
-                car_onc1.y = 4.40;
-                car_onc1.theta = pi;
+                if ~isempty(road_geom)
+                    [y_c_onc1, th_onc1, ~] = road_geom.getCenterline(car_onc1.x);
+                    car_onc1.y = y_c_onc1 + 1.30;
+                    car_onc1.theta = th_onc1 + pi;
+                else
+                    car_onc1.y = 4.40;
+                    car_onc1.theta = pi;
+                end
             end
             
             % 4. Step Lead Car
@@ -194,23 +227,29 @@ classdef HanddrawnVillageTrafficGenerator < handle
                     car_lead.v = max(2.2, car_lead.v - 1.2 * dt);
                     car_lead.behavior_state = 'SLOWING_SPEED_BREAKER';
                 elseif car_lead.x >= 92.0
-                    % Accelerating after speed breaker across bridge
-                    car_lead.v = min(5.5, car_lead.v + 1.2 * dt);
+                    % Accelerating after speed breaker across bridge and curve
+                    car_lead.v = min(5.2, car_lead.v + 1.0 * dt);
                     car_lead.behavior_state = 'ACCELERATING';
                 end
                 car_lead.x = car_lead.x + car_lead.v * dt;
                 car_lead.vx = car_lead.v;
-                car_lead.y = 1.80;
+                if ~isempty(road_geom)
+                    [y_c_lead, th_lead, ~] = road_geom.getCenterline(car_lead.x);
+                    car_lead.y = y_c_lead - 1.20;
+                    car_lead.theta = th_lead;
+                else
+                    car_lead.y = 1.80;
+                end
             end
             
-            % 5. Step Reckless Pedestrian 2 (Stochastic Brownian Crossing)
+            % 5. Step Reckless Pedestrian 2 (Stochastic Brownian Crossing near speed breaker)
             ped2 = obj.getAgentById(6);
             if ~isempty(ped2) && ped2.is_active
-                if sim_time >= 4.5 && ped2.y < 5.6
-                    % Stochastic lateral crossing with jitter
+                % Crossing starts as Lead Car approaches (sim_time >= 9.0s)
+                if sim_time >= 9.0 && ped2.y < 5.6
                     jitter_y = 0.25 * (rand(obj.rng_stream) - 0.5);
                     jitter_x = 0.20 * (rand(obj.rng_stream) - 0.5);
-                    v_cross = 1.05 + jitter_y;
+                    v_cross = 0.95 + jitter_y;
                     ped2.y = ped2.y + v_cross * dt;
                     ped2.x = ped2.x + jitter_x * dt;
                     ped2.vy = v_cross;
@@ -235,8 +274,14 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 end
                 car_onc2.x = car_onc2.x - car_onc2.v * dt;
                 car_onc2.vx = -car_onc2.v;
-                car_onc2.y = 4.30;
-                car_onc2.theta = pi;
+                if ~isempty(road_geom)
+                    [y_c_onc2, th_onc2, ~] = road_geom.getCenterline(car_onc2.x);
+                    car_onc2.y = y_c_onc2 + 1.25;
+                    car_onc2.theta = th_onc2 + pi;
+                else
+                    car_onc2.y = 4.30;
+                    car_onc2.theta = pi;
+                end
             end
             
             % 7. Step Disembarked Passenger (if spawned)
@@ -248,36 +293,43 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 ped1.y = 0.40;
             end
             
-            % 8. Step Cattle Herd (4 individual cows with 2D stochastic wandering & proximity reaction)
+            % 8. Step Cattle Herd (4 individual cows with localized grazing & proximity reaction)
             for c_id = 8:11
                 cow = obj.getAgentById(c_id);
                 if isempty(cow) || ~cow.is_active, continue; end
                 
-                % Proximity to ego vehicle
                 dist_to_ego = hypot(cow.x - ego_state.x, cow.y - ego_state.y);
                 
-                if dist_to_ego < 11.0 && ego_state.x < cow.x
-                    % Reactive avoidance: cow moves away from ego vehicle path
-                    if cow.y >= 3.0
-                        cow.y = min(5.4, cow.y + 0.35 * dt); % Move to upper shoulder
-                        cow.vy = 0.35;
-                    else
-                        cow.y = max(0.6, cow.y - 0.35 * dt); % Move to lower shoulder
-                        cow.vy = -0.35;
-                    end
-                    cow.vx = 0.10 * (rand(obj.rng_stream) - 0.5);
+                if ~isempty(road_geom)
+                    [y_c_cow, th_cow, ~] = road_geom.getCenterline(cow.x);
+                    [y_min_cow, y_max_cow] = road_geom.getBounds(cow.x);
+                else
+                    y_c_cow = 3.0; th_cow = 0.0; y_min_cow = 0.0; y_max_cow = 6.0;
+                end
+                
+                % Desired grazing lateral offset (cluster along upper road edge and outer shoulder verge)
+                switch c_id
+                    case 8,  y_nom = y_c_cow + 2.35;
+                    case 9,  y_nom = y_c_cow + 2.45;
+                    case 10, y_nom = y_c_cow + 2.55;
+                    case 11, y_nom = y_c_cow + 2.50;
+                end
+                
+                if dist_to_ego < 12.0 && ego_state.x < cow.x
+                    % Proximity alert: cow moves further onto the upper shoulder away from traffic lane
+                    cow.y = min(y_max_cow + 0.6, cow.y + 0.35 * dt);
+                    cow.vy = 0.35;
+                    cow.vx = 0.04 * (rand(obj.rng_stream) - 0.5);
                     cow.behavior_state = 'SCATTERING_SHOULDER';
                 else
-                    % Stochastic wandering
-                    d_theta = 0.35 * (rand(obj.rng_stream) - 0.5);
-                    cow.theta = cow.theta + d_theta;
-                    v_wander = max(0.08, min(0.40, cow.v + 0.05 * (rand(obj.rng_stream) - 0.5)));
-                    cow.v = v_wander;
-                    cow.vx = v_wander * cos(cow.theta);
-                    cow.vy = v_wander * sin(cow.theta);
+                    % Localized grazing: micro-wander around y_nom
+                    dy_nom = y_nom - cow.y;
+                    cow.vy = 0.15 * dy_nom + 0.04 * (rand(obj.rng_stream) - 0.5);
+                    cow.vx = 0.04 * (rand(obj.rng_stream) - 0.5);
+                    cow.y = cow.y + cow.vy * dt;
                     cow.x = cow.x + cow.vx * dt;
-                    cow.y = max(0.4, min(5.6, cow.y + cow.vy * dt));
-                    cow.behavior_state = 'GRAZING_WANDERING';
+                    cow.theta = th_cow + 0.15 * (rand(obj.rng_stream) - 0.5);
+                    cow.behavior_state = 'GRAZING';
                 end
             end
             

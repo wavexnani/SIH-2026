@@ -290,7 +290,11 @@ classdef Stage5CoordinationController < handle
                 if ~isempty(bp)
                     for r = 1:size(ref_path_coord, 1)
                         px_r = ref_path_coord(r, 1);
-                        [y_lo, y_hi] = bp.map.getRoadBoundsAt(px_r);
+                        if isprop(world_coord, 'road_geometry') && ~isempty(world_coord.road_geometry)
+                            [y_lo, y_hi] = world_coord.road_geometry.getBounds(px_r);
+                        else
+                            [y_lo, y_hi] = bp.map.getRoadBoundsAt(px_r);
+                        end
                         margin = bp.half_W_bound;
                         ref_path_coord(r, 2) = min(y_hi - margin, max(y_lo + margin, ref_path_coord(r, 2)));
                     end

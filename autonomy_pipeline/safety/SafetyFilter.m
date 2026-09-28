@@ -40,13 +40,18 @@ classdef SafetyFilter < handle
             y_max_safe_curr = y_max_curr - half_width;
             
             % Active proportional PD re-centering steering calculation for emergency interventions
-            k_p = 0.15; k_d = 0.50;
+            y_c_curr = (y_min_curr + y_max_curr) / 2.0;
+            th_road_curr = 0.0;
+            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+                [~, th_road_curr, ~] = world.road_geometry.getCenterline(world.ego.x);
+            end
+            k_p = 0.20; k_d = 0.50;
             if world.ego.y > y_max_safe_curr
-                delta_steer_safe = -k_p * (world.ego.y - y_max_safe_curr) - k_d * world.ego.theta;
+                delta_steer_safe = -k_p * (world.ego.y - y_max_safe_curr) + k_d * (th_road_curr - world.ego.theta);
             elseif world.ego.y < y_min_safe_curr
-                delta_steer_safe = k_p * (y_min_safe_curr - world.ego.y) - k_d * world.ego.theta;
+                delta_steer_safe = k_p * (y_min_safe_curr - world.ego.y) + k_d * (th_road_curr - world.ego.theta);
             else
-                delta_steer_safe = -k_d * world.ego.theta;
+                delta_steer_safe = 0.10 * (y_c_curr - world.ego.y) + k_d * (th_road_curr - world.ego.theta);
             end
             delta_steer_safe = max(-0.15, min(0.15, delta_steer_safe));
             
@@ -69,10 +74,15 @@ classdef SafetyFilter < handle
                     y_min_safe_k = y_min_k + half_width;
                     y_max_safe_k = y_max_k - half_width;
                     
-                    if py_k < y_min_safe_k || py_k > y_max_safe_k
+                    if py_k < (y_min_safe_k - 0.04) || py_k > (y_max_safe_k + 0.04)
                         filter_active = true;
                         filter_reason = 'predicted_road_bound_violation';
-                        u_safe = [delta_steer_safe; -0.20];
+                        if py_k < y_min_safe_k
+                            delta_rec = max(0.06, delta_steer_safe);
+                        else
+                            delta_rec = min(-0.06, delta_steer_safe);
+                        end
+                        u_safe = [delta_rec; -0.20];
                         return;
                     end
                 end
@@ -154,6 +164,10 @@ classdef SafetyFilter < handle
     methods (Access = private)
         function [y_min, y_max] = getRoadBoundsAt(obj, world, x, bound_provider)
             % GETROADBOUNDSAT Dynamically queries position-dependent road bounds.
+            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+                [y_min, y_max] = world.road_geometry.getBounds(x);
+                return;
+            end
             if ~isempty(bound_provider)
                 if isprop(bound_provider, 'map') && ~isempty(bound_provider.map)
                     [y_min, y_max] = bound_provider.map.getRoadBoundsAt(x);

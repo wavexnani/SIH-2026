@@ -101,6 +101,66 @@ classdef RoadGeometry < handle
         
         function [y_c, theta_r, kappa] = getCenterline(obj, x)
             % GETCENTERLINE Returns centerline position y_c, tangential heading theta_r, and curvature kappa
+            if strcmp(obj.road_type, 'unstructured') && obj.curve_amp > 0
+                % Organic Digitized Indian Village Road:
+                % Zone 1 (x in [0, 85m]): Village meander with natural gentle curves
+                % Zone 2 (x in [85, 106m]): Straight alignment through speed breaker & canal bridge
+                % Zone 3 (x in [106, 160m]): Upright sweeping countryside curve
+                
+                if x <= 85.0
+                    % Natural, well-centered village meander (amplitude 0.30m, lambda = 80m)
+                    kw_m = 2 * pi / 80.0;
+                    y_m = 0.30 * sin(kw_m * x);
+                    dy_m = 0.30 * kw_m * cos(kw_m * x);
+                    d2y_m = -0.30 * (kw_m^2) * sin(kw_m * x);
+                    
+                    if x < 60.0
+                        y_c = obj.y_center_base + y_m;
+                        dy_dx = dy_m;
+                        d2y_dx2 = d2y_m;
+                    else
+                        % Smoothly straighten into canal bridge (x in [60, 85m])
+                        s_in = (x - 60.0) / 25.0;
+                        w_br = 3.0 * s_in^2 - 2.0 * s_in^3;
+                        dw_br = (6.0 * s_in - 6.0 * s_in^2) / 25.0;
+                        d2w_br = (6.0 - 12.0 * s_in) / (25.0^2);
+                        
+                        y_c = obj.y_center_base + (1.0 - w_br) * y_m;
+                        dy_dx = (1.0 - w_br) * dy_m - dw_br * y_m;
+                        d2y_dx2 = (1.0 - w_br) * d2y_m - 2.0 * dw_br * dy_m - d2w_br * y_m;
+                    end
+                elseif x <= 106.0
+                    % Bridge culvert zone: straight alignment
+                    y_c = obj.y_center_base;
+                    dy_dx = 0.0;
+                    d2y_dx2 = 0.0;
+                else
+                    % Upright sweeping countryside curve (x > 106m)
+                    dx = x - 106.0;
+                    L_turn = 48.0;
+                    if dx < L_turn
+                        s = dx / L_turn;
+                        % Quintic smoothstep C^2 transition
+                        S = 10.0 * s^3 - 15.0 * s^4 + 6.0 * s^5;
+                        dS_ds = 30.0 * s^2 - 60.0 * s^3 + 30.0 * s^4;
+                        d2S_ds2 = 60.0 * s - 180.0 * s^2 + 120.0 * s^3;
+                        
+                        y_c = obj.y_center_base + obj.curve_amp * S;
+                        dy_dx = obj.curve_amp * dS_ds / L_turn;
+                        d2y_dx2 = obj.curve_amp * d2S_ds2 / (L_turn^2);
+                    else
+                        y_c = obj.y_center_base + obj.curve_amp;
+                        dy_dx = 0.0;
+                        d2y_dx2 = 0.0;
+                    end
+                end
+                
+                theta_r = atan(dy_dx);
+                kappa = d2y_dx2 / ((1 + dy_dx^2)^(1.5));
+                return;
+            end
+            
+            % Standard / generic curve logic for other road types
             if obj.curve_amp == 0 || x < obj.curve_x_start
                 y_c = obj.y_center_base;
                 theta_r = 0.0;
@@ -137,8 +197,8 @@ classdef RoadGeometry < handle
             
             % Edge irregularity (realistic unstructured shoulder variations)
             if obj.boundary_noise_amp > 0
-                delta_w_left = obj.boundary_noise_amp * sin(x / 7.0 + 0.4);
-                delta_w_right = obj.boundary_noise_amp * cos(x / 9.0 + 1.2);
+                delta_w_left = obj.boundary_noise_amp * (0.6 * sin(x / 6.5 + 0.3) + 0.4 * cos(x / 3.2));
+                delta_w_right = obj.boundary_noise_amp * (0.6 * cos(x / 7.8 + 0.8) + 0.4 * sin(x / 2.9));
             else
                 delta_w_left = 0.0;
                 delta_w_right = 0.0;
