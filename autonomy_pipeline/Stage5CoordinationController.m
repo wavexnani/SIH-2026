@@ -154,7 +154,21 @@ classdef Stage5CoordinationController < handle
                 end
             else
                 obj.cacrc_planner.locked_side = 'none';
-                if was_in_maneuver && obj.x_recenter_start < 0
+                
+                [~, nearest_r0] = min(abs(ref_path(:, 1) - world.ego.x));
+                y_nom_curr = ref_path(nearest_r0, 2);
+                has_obs_ahead = false;
+                if isprop(world, 'static_obs') && ~isempty(world.static_obs)
+                    for obs_i = 1:size(world.static_obs, 1)
+                        ox = world.static_obs(obs_i, 1);
+                        if ox > world.ego.x && (ox - world.ego.x) < 18.0
+                            has_obs_ahead = true;
+                            break;
+                        end
+                    end
+                end
+                
+                if (was_in_maneuver || (~has_obs_ahead && abs(world.ego.y - y_nom_curr) > 0.35)) && obj.x_recenter_start < 0
                     obj.x_recenter_start = world.ego.x;
                     obj.y_recenter_start = world.ego.y;
                     obj.x_overtake_start = -1;
@@ -163,11 +177,11 @@ classdef Stage5CoordinationController < handle
                 
                 % Reset recenter state once recentering distance is completed OR ego has returned to right lane centerline (|y - y_ref| <= 0.15m and aligned)
                 if obj.x_recenter_start > 0
-                    L_lc_recenter_check = max(25.0, 3.5 * max(world.ego.v, 2.0));
+                    L_lc_recenter_check = max(30.0, 5.0 * max(world.ego.v, 2.0));
                     [~, nearest_r] = min(abs(ref_path(:, 1) - world.ego.x));
                     y_centerline = ref_path(nearest_r, 2);
                     if world.ego.x > (obj.x_recenter_start + L_lc_recenter_check) || ...
-                       (world.ego.x > (obj.x_recenter_start + 12.0) && abs(world.ego.y - y_centerline) <= 0.15 && abs(world.ego.theta) <= 0.05)
+                       (world.ego.x > (obj.x_recenter_start + 15.0) && abs(world.ego.y - y_centerline) <= 0.15 && abs(world.ego.theta) <= 0.05)
                         obj.x_recenter_start = -1;
                         obj.y_recenter_start = -1;
                     end
@@ -182,11 +196,8 @@ classdef Stage5CoordinationController < handle
                 keep_mask = true(1, length(valid_agents));
                 for i = 1:length(valid_agents)
                     ag = valid_agents(i);
-                    if ag.id > 0
-                        % Oncoming agent in opposite lane (y >= 3.70m, vx <= 0) does not block ego's right lane (y = 1.80m)
-                        if ag.y >= 3.70 && (ag.vx <= 0 || (ag.x - world.ego.x) < 15.0)
-                            keep_mask(i) = false;
-                        end
+                    if isempty(ag) || ag.id <= 0 || (isprop(ag, 'is_active') && ~ag.is_active)
+                        keep_mask(i) = false;
                     end
                 end
                 world_coord.agents = valid_agents(keep_mask);
@@ -214,8 +225,9 @@ classdef Stage5CoordinationController < handle
                 bp = obj.cacrc_planner.bound_provider;
             end
             
-            is_unstructured = ~isempty(bp) && ismethod(bp.map, 'extractLocalBounds') && ...
-               (strcmpi(bp.map.map_type, 'unstructured') || strcmpi(bp.map.map_type, 'indian_unstructured'));
+            is_unstructured = (~isempty(bp) && isprop(bp, 'map') && ~isempty(bp.map) && ismethod(bp.map, 'extractLocalBounds') && ...
+               (strcmpi(bp.map.map_type, 'unstructured') || strcmpi(bp.map.map_type, 'indian_unstructured'))) || ...
+               (isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && (strcmpi(world.road_geometry.road_type, 'unstructured') || world.road_geometry.curve_amp > 0));
 
             ref_path_is_default_flat = all(abs(ref_path(:, 2) - ref_path(1, 2)) < 1e-4) && abs(ref_path(1, 2) - 3.0) < 0.05;
             if is_unstructured && ref_path_is_default_flat
@@ -271,7 +283,7 @@ classdef Stage5CoordinationController < handle
                 end
             elseif obj.x_recenter_start > 0
                 ref_path_coord = ref_path;
-                L_lc_recenter = max(25.0, 3.5 * max(world.ego.v, 2.0));
+                L_lc_recenter = max(30.0, 5.0 * max(world.ego.v, 2.0));
                 y_start = obj.y_recenter_start;
                 if y_start < 0, y_start = 3.35; end
                 for r = 1:size(ref_path_coord, 1)
@@ -283,7 +295,7 @@ classdef Stage5CoordinationController < handle
                     dy_total = y_target_lane - y_start;
                     dy_dx = (dy_total * ds_dsnorm) / L_lc_recenter;
                     ref_path_coord(r, 2) = y_start + dy_total * smooth_s;
-                    ref_path_coord(r, 3) = atan(dy_dx);
+                    ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
                 end
             else
                 ref_path_coord = ref_path;

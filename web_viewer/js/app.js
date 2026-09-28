@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       this.bindEvents();
       const scenSelect = document.getElementById('scenario-select');
-      const initialUrl = scenSelect ? scenSelect.value : 'data/handdrawn_village_scenario.json';
+      const initialUrl = scenSelect ? scenSelect.value : 'data/handdrawn_village_corrected.json';
       this.loadData(initialUrl);
     },
 
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       this.renderFrame();
     },
 
-    async loadData(jsonUrl = 'data/handdrawn_village_scenario.json') {
+    async loadData(jsonUrl = 'data/handdrawn_village_corrected.json') {
       try {
         const overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.style.display = 'flex';

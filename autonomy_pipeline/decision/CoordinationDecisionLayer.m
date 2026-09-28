@@ -108,7 +108,7 @@ classdef CoordinationDecisionLayer < handle
             for i = 1:length(detections)
                 det = detections(i);
                 is_lane_target = det.is_same_lane || (strcmp(det.type, 'auto') && det.dx <= 25.0 && abs(det.dy) <= 1.45);
-                if ~strcmp(det.type, 'pothole') && det.is_ahead && is_lane_target && det.dx < min_lead_dx
+                if ~ismember(det.type, {'pothole', 'static_obstacle', 'pedestrian', 'sheep', 'cattle'}) && det.is_ahead && is_lane_target && det.dx < min_lead_dx
                     min_lead_dx = det.dx;
                     lead_idx = i;
                 end
@@ -123,8 +123,9 @@ classdef CoordinationDecisionLayer < handle
                 v_pd = lead_det.v + 0.40 * headway_err + 0.60 * relative_v;
                 v_pd_clamped = max(0.0, min(obj.v_des_nominal, v_pd));
                 
-                % Evaluate Spatial/TTC Feasibility Gate before OVERTAKE initiation
-                if lead_det.dx <= 28.0 && lead_det.dx >= 6.0
+                min_dx_gate = 3.5;
+                if lead_det.v > 1.0, min_dx_gate = 6.0; end
+                if lead_det.dx <= 28.0 && lead_det.dx >= min_dx_gate
                     decision.overtake_candidate = true;
                 end
                 
@@ -142,7 +143,8 @@ classdef CoordinationDecisionLayer < handle
                 if gate_blocked_by_threat_or_gap
                     decision.macro_intent = 'YIELD';
                     decision.allow_overtake = false;
-                    d_standstill = 15.0;
+                    d_standstill = 5.0;
+                    if lead_det.v > 1.0, d_standstill = 10.0; end
                     err_d = lead_det.dx - d_standstill;
                     v_yield = max(0.0, min(v_pd_clamped, 0.50 * err_d));
                     decision.target_v = v_yield;
@@ -150,7 +152,7 @@ classdef CoordinationDecisionLayer < handle
                         block_reason, avail_gap, req_gap, gate_ttc);
                     return;
                 else
-                    if obj.overtake_enabled && is_feasible && lead_det.dx <= 28.0 && lead_det.dx >= 6.0
+                    if obj.overtake_enabled && is_feasible && lead_det.dx <= 28.0 && lead_det.dx >= min_dx_gate
                         % Corridor clear, speed sufficient, & gap reachable -> Initiate latched overtake
                         obj.active_overtake_id = lead_det.id;
                         decision.macro_intent = 'OVERTAKE';
@@ -279,13 +281,15 @@ classdef CoordinationDecisionLayer < handle
                 return;
             end
             
-            if ego.v < 1.5
+            if ego.v < 1.5 && lead_det.v > 1.0
                 is_feasible = false;
                 block_reason = 'SPEED_TOO_LOW';
                 return;
             end
             
-            if lead_det.dx < 7.0
+            min_dx_req = 3.5;
+            if lead_det.v > 1.0, min_dx_req = 7.0; end
+            if lead_det.dx < min_dx_req
                 is_feasible = false;
                 block_reason = 'DISTANCE_TOO_SHORT';
                 return;

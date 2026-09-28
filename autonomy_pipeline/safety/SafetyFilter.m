@@ -78,9 +78,9 @@ classdef SafetyFilter < handle
                         filter_active = true;
                         filter_reason = 'predicted_road_bound_violation';
                         if py_k < y_min_safe_k
-                            delta_rec = max(0.06, delta_steer_safe);
+                            delta_rec = max(0.02, delta_steer_safe);
                         else
-                            delta_rec = min(-0.06, delta_steer_safe);
+                            delta_rec = min(-0.02, delta_steer_safe);
                         end
                         u_safe = [delta_rec; -0.20];
                         return;
@@ -143,10 +143,15 @@ classdef SafetyFilter < handle
                             pred_o_y = o_y + o_vy * t_k;
                             
                             if abs(p_bc_x - pred_o_x) <= dx_overlap && abs(p_bc_y - pred_o_y) < dy_req
-                                filter_active = true;
-                                filter_reason = 'predicted_obstacle_clearance_violation';
-                                u_safe = [0.0; obj.max_decel];
-                                return;
+                                obs_th = 0.0;
+                                if hypot(o_vx, o_vy) > 0.1, obs_th = atan2(o_vy, o_vx); end
+                                obb_gap = WorldState.computeOBBClearance(p_bc_x, p_bc_y, pth_k, obj.vehicle_length, obj.vehicle_width, pred_o_x, pred_o_y, o_L, o_W, obs_th);
+                                if obb_gap <= 0.0
+                                    filter_active = true;
+                                    filter_reason = 'predicted_obstacle_clearance_violation';
+                                    u_safe = [u_mpc(1); obj.max_decel];
+                                    return;
+                                end
                             end
                         end
                     end

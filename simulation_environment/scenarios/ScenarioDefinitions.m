@@ -119,6 +119,9 @@ function world = ScenarioDefinitions(scenario_name, cfg, varargin)
               'handdrawn_sketch_scenario', 'canal_bridge_village', 'handdrawn_village'}
             world = scenario_handdrawn_village_canal(world, cfg, varargin{:});
             
+        case {'handdrawn_village_corrected', 'handdrawn_corrected'}
+            world = scenario_handdrawn_village_corrected(world, cfg, varargin{:});
+            
         otherwise
             warning('Unknown scenario: %s. Using default (moderate)', scenario_name);
             world = scenario_moderate(world, cfg);
@@ -985,6 +988,64 @@ function world = scenario_handdrawn_village_canal(world, cfg, varargin)
     world.n_agents = length(world.agents);
     
     for j = 1:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+end
+
+% =========================================================================
+% DIGITALIZED HAND-DRAWN RURAL VILLAGE & CANAL BRIDGE (CORRECTED)
+% =========================================================================
+
+function world = scenario_handdrawn_village_corrected(world, cfg, varargin)
+    % SCENARIO_HANDDRAWN_VILLAGE_CORRECTED Hand-Drawn Village Scene with Pothole Avoidance & Calibrated Curve
+    %
+    % Key Corrections:
+    %   1. Pothole 1 (x=22m, y=1.8m) & Pothole 2 (x=84m, y=0.85m) registered as physical static obstacles
+    %      for topological CA-CRC swerve and avoidance.
+    %   2. Road geometry with calibrated, physically-damped curvature (amplitude 1.50m) for stable tracking.
+    %   3. Sheep flock (8 sheep) positioned on outer grass verge (y in [yc+2.75, yc+3.25m]) with wide lateral clearance.
+    
+    p = inputParser;
+    addParameter(p, 'seed', 42, @isnumeric);
+    addParameter(p, 'density', 'MEDIUM', @ischar);
+    if nargin > 2
+        parse(p, varargin{:});
+        sim_seed = p.Results.seed;
+    else
+        sim_seed = 42;
+    end
+    
+    % Initialize ego vehicle in lower lane
+    world = world.setEgoState(5.0, 1.80, 0, 5.0);
+    
+    % Road Geometry (160m total, bridge at 92-106m, calibrated upward curve after bridge at x=106m)
+    world.road_geometry = RoadGeometry('unstructured', 'road_length', 160.0, ...
+                                       'road_width', cfg.road_width, 'y_center', cfg.road_center_y, ...
+                                       'curve_amp', 1.50, 'curve_lambda', 80.0, 'grade_slope', 0.01);
+    world.road_geometry.curve_x_start = 106.0;
+    world.road_geometry.boundary_noise_amp = 0.08;
+    world.road_geometry.setBridgeCanal(92.0, 106.0, 5.2);
+    world.road_length = 160.0;
+    world.road_width = cfg.road_width;
+    world.road_center_y = cfg.road_center_y;
+    
+    % Add Potholes to RoadGeometry for telemetry
+    world.road_geometry.addPothole(1, 22.0, 1.80, 2.0, 1.3, 0.10, 'severe');  % Pothole 1
+    world.road_geometry.addPothole(2, 84.0, 0.85, 1.4, 1.0, 0.08, 'moderate'); % Pothole 2
+    world.potholes = world.road_geometry.potholes;
+    
+    % Add Speed Breaker
+    world.road_geometry.addSpeedBreaker(1, 88.0, 0.8, cfg.road_width, 0.10);
+    
+    % Register Potholes as physical avoidance static obstacles in world
+    world = world.setStaticObstacle(1, 22.0, 1.80, 2.0, 1.3); % Pothole 1
+    world = world.setStaticObstacle(2, 84.0, 0.85, 1.4, 1.0); % Pothole 2
+    for j = 3:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
+    
+    % Handdrawn Traffic Generator
+    world.traffic_mode = 'stochastic';
+    world.traffic_generator = HanddrawnVillageTrafficGenerator(sim_seed);
+    world.traffic_generator.populateScene(world.road_geometry, world.ego);
+    world.agents = world.traffic_generator.getLegacyAgentsArray();
+    world.n_agents = length(world.agents);
 end
 
 
