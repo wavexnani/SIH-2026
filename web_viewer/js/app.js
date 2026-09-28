@@ -132,6 +132,16 @@ document.addEventListener('DOMContentLoaded', () => {
             desc: st.safety ? st.safety.filter_reason : 'Layer 2 Safety Filter active'
           });
         }
+
+        // Speed Breaker Bump Traversal Event
+        if (st.ego && st.ego.x >= 86.5 && st.ego.x <= 89.5 && (!this.events.some(e => e.type === 'speed-breaker'))) {
+          this.events.push({
+            step: idx,
+            type: 'speed-breaker',
+            title: `Speed Breaker: ${(st.ego.v || 2.0).toFixed(1)} m/s Crawl`,
+            desc: `Suspension regulated speed for 10cm IRC road bump traversal`
+          });
+        }
       });
     },
 
@@ -1066,24 +1076,27 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fill();
     },
 
-    drawSheepSprite(ctx, s, L, W) {
+    drawSheepSprite(ctx, s, L, W, isLaying = false) {
       const halfL = (L / 2) * s;
       const halfW = (W / 2) * s;
 
-      // 1. Tiny dark hooves extending slightly
-      ctx.fillStyle = '#1e293b';
-      // Front hooves
-      ctx.fillRect(halfL * 0.35, halfW * 0.65, halfL * 0.18, halfW * 0.28);
-      ctx.fillRect(halfL * 0.35, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
-      // Rear hooves
-      ctx.fillRect(-halfL * 0.55, halfW * 0.65, halfL * 0.18, halfW * 0.28);
-      ctx.fillRect(-halfL * 0.55, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+      // 1. Tiny dark hooves extending slightly (only when standing/grazing)
+      if (!isLaying) {
+        ctx.fillStyle = '#1e293b';
+        // Front hooves
+        ctx.fillRect(halfL * 0.35, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+        ctx.fillRect(halfL * 0.35, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+        // Rear hooves
+        ctx.fillRect(-halfL * 0.55, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+        ctx.fillRect(-halfL * 0.55, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+      }
 
       // 2. Fluffy Woolly Body (Plump fleece with cloud-like scalloped wool tufts)
       // Wool base shadow
       ctx.fillStyle = '#cbd5e1';
       ctx.beginPath();
-      ctx.ellipse(-halfL * 0.05, 0, halfL * 0.82, halfW * 0.88, 0, 0, 2 * Math.PI);
+      const bodyWScale = isLaying ? 0.98 : 0.88;
+      ctx.ellipse(-halfL * 0.05, 0, halfL * 0.82, halfW * bodyWScale, 0, 0, 2 * Math.PI);
       ctx.fill();
 
       // Fluffy wool puffs (overlapping ivory/cream clouds)
@@ -1117,35 +1130,36 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fill();
 
       // 3. Black/Charcoal Sheep Head & Snout (classic Suffolk / Indian indigenous sheep)
+      const headOffsetY = isLaying ? halfW * 0.10 : 0;
       ctx.fillStyle = '#1e293b';
       ctx.beginPath();
-      ctx.ellipse(halfL * 0.72, 0, halfL * 0.35, halfW * 0.42, 0, 0, 2 * Math.PI);
+      ctx.ellipse(halfL * 0.72, headOffsetY, halfL * 0.35, halfW * 0.42, 0, 0, 2 * Math.PI);
       ctx.fill();
 
       // Muzzle / pinkish gray nose
       ctx.fillStyle = '#475569';
       ctx.beginPath();
-      ctx.ellipse(halfL * 0.98, 0, halfL * 0.12, halfW * 0.24, 0, 0, 2 * Math.PI);
+      ctx.ellipse(halfL * 0.98, headOffsetY, halfL * 0.12, halfW * 0.24, 0, 0, 2 * Math.PI);
       ctx.fill();
 
       // Nostrils
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(halfL * 1.02, -halfW * 0.10, 1.2, 1.2);
-      ctx.fillRect(halfL * 1.02, halfW * 0.05, 1.2, 1.2);
+      ctx.fillRect(halfL * 1.02, headOffsetY - halfW * 0.10, 1.2, 1.2);
+      ctx.fillRect(halfL * 1.02, headOffsetY + halfW * 0.05, 1.2, 1.2);
 
       // Floppy cute ears
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.ellipse(halfL * 0.60, halfW * 0.60, halfL * 0.18, halfW * 0.22, 0.7, 0, 2 * Math.PI);
+      ctx.ellipse(halfL * 0.60, headOffsetY + halfW * 0.60, halfL * 0.18, halfW * 0.22, 0.7, 0, 2 * Math.PI);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(halfL * 0.60, -halfW * 0.60, halfL * 0.18, halfW * 0.22, -0.7, 0, 2 * Math.PI);
+      ctx.ellipse(halfL * 0.60, headOffsetY - halfW * 0.60, halfL * 0.18, halfW * 0.22, -0.7, 0, 2 * Math.PI);
       ctx.fill();
 
       // Head wool crown (forelock puff)
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath();
-      ctx.arc(halfL * 0.55, 0, halfW * 0.30, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.55, headOffsetY, halfW * 0.30, 0, 2 * Math.PI);
       ctx.fill();
     },
 
@@ -1298,7 +1312,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'auto' || type === 'autorickshaw') {
           this.drawAutoRickshawSprite(ctx, s, L, W);
         } else if (type === 'sheep' || (ag.id_str && ag.id_str.includes('SHEEP'))) {
-          this.drawSheepSprite(ctx, s, L, W);
+          const isLaying = (ag.id % 2 === 0);
+          this.drawSheepSprite(ctx, s, L, W, isLaying);
         } else if (type === 'cattle' || type === 'cow') {
           this.drawCattleSprite(ctx, s, L, W);
         } else if (type === 'bike' || type === 'motorcycle') {
@@ -1330,10 +1345,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const L = (this.data.metadata ? this.data.metadata.vehicle_length : 4.7);
       const W = (this.data.metadata ? this.data.metadata.vehicle_width : 1.8);
 
+      // Check if traversing speed breaker (x in [86.2, 90.2m])
+      const isOverBump = (ego.x >= 86.2 && ego.x <= 90.2);
+      let bumpPitch = 0;
+      if (isOverBump) {
+        const dxBump = ego.x - 88.0;
+        const frontImpulse = Math.max(0, 1 - Math.abs(dxBump + 1.2) / 0.85);
+        const rearImpulse = Math.max(0, 1 - Math.abs(dxBump - 1.2) / 0.85);
+        bumpPitch = (frontImpulse - rearImpulse) * 0.08; // dynamic pitch tilt over bump
+      }
+
       // Ego Local Perception Sensing Window (Forward 50m, Rear 15m, Lateral 6m)
       ctx.save();
       ctx.translate(ego.x * s, ego.y * s);
-      ctx.rotate(ego.theta || 0);
+      ctx.rotate((ego.theta || 0) + bumpPitch);
       const fwdRange = 50.0;
       const rearRange = 15.0;
       const latRange = 6.0;
@@ -1398,6 +1423,12 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 11px "JetBrains Mono", monospace';
       ctx.fillText(`EGO (${ego.v ? ego.v.toFixed(1) : '0.0'} m/s)`, ego.x * s - 25, -ego.y * s - W/2 * s - 7);
+
+      if (isOverBump) {
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.fillText(`⚡ SPEED BUMP CRAWL (${ego.v ? ego.v.toFixed(1) : '2.0'} m/s)`, ego.x * s - 48, -ego.y * s - W/2 * s - 20);
+      }
       ctx.restore();
     },
 

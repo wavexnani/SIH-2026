@@ -382,6 +382,7 @@ body {
 .event-marker.topology-change { background: var(--accent-purple); }
 .event-marker.safety-event { background: var(--accent-orange); }
 .event-marker.highlight-frame { background: var(--accent-cyan); }
+.event-marker.speed-breaker { background: #facc15; box-shadow: 0 0 6px rgba(250, 204, 21, 0.6); }
 
 #event-tooltip {
   position: fixed;

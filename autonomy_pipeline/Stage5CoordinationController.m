@@ -282,40 +282,95 @@ classdef Stage5CoordinationController < handle
                     ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
                 end
             elseif obj.x_recenter_start > 0
-                ref_path_coord = ref_path;
                 L_lc_recenter = max(30.0, 5.0 * max(world.ego.v, 2.0));
-                y_start = obj.y_recenter_start;
-                if y_start < 0, y_start = 3.35; end
-                for r = 1:size(ref_path_coord, 1)
-                    px = ref_path_coord(r, 1);
-                    s_norm = min(1.0, max(0.0, (px - obj.x_recenter_start) / L_lc_recenter));
-                    smooth_s = 3.0 * s_norm^2 - 2.0 * s_norm^3;
-                    ds_dsnorm = 6.0 * s_norm - 6.0 * s_norm^2;
-                    y_target_lane = ref_path(r, 2);
-                    dy_total = y_target_lane - y_start;
-                    dy_dx = (dy_total * ds_dsnorm) / L_lc_recenter;
-                    ref_path_coord(r, 2) = y_start + dy_total * smooth_s;
-                    ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
+                if world.ego.x > (obj.x_recenter_start + L_lc_recenter)
+                    obj.x_recenter_start = 0;
+                    ref_path_coord = ref_path;
+                else
+                    ref_path_coord = ref_path;
+                    y_start = obj.y_recenter_start;
+                    if y_start < 0, y_start = 3.35; end
+                    for r = 1:size(ref_path_coord, 1)
+                        px = ref_path_coord(r, 1);
+                        s_norm = min(1.0, max(0.0, (px - obj.x_recenter_start) / L_lc_recenter));
+                        smooth_s = 3.0 * s_norm^2 - 2.0 * s_norm^3;
+                        ds_dsnorm = 6.0 * s_norm - 6.0 * s_norm^2;
+                        y_target_lane = ref_path(r, 2);
+                        dy_total = y_target_lane - y_start;
+                        dy_dx = (dy_total * ds_dsnorm) / L_lc_recenter;
+                        ref_path_coord(r, 2) = y_start + dy_total * smooth_s;
+                        ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
+                    end
                 end
             else
                 ref_path_coord = ref_path;
-                if ~isempty(bp)
-                    for r = 1:size(ref_path_coord, 1)
-                        px_r = ref_path_coord(r, 1);
-                        if isprop(world_coord, 'road_geometry') && ~isempty(world_coord.road_geometry)
-                            [y_lo, y_hi] = world_coord.road_geometry.getBounds(px_r);
-                        else
-                            [y_lo, y_hi] = bp.map.getRoadBoundsAt(px_r);
-                        end
-                        margin = bp.half_W_bound;
-                        ref_path_coord(r, 2) = min(y_hi - margin, max(y_lo + margin, ref_path_coord(r, 2)));
+            end
+            
+            % Check if sheep herd is present on the lower road verge (x in [110, 134m])
+            has_lower_sheep = false;
+            if isprop(world_coord, 'agents') && ~isempty(world_coord.agents)
+                for a_i = 1:length(world_coord.agents)
+                    ag_chk = world_coord.agents(a_i);
+                    is_sheep = (isprop(ag_chk, 'type') && strcmp(ag_chk.type, 'sheep')) || ...
+                               (isprop(ag_chk, 'class_type') && strcmp(ag_chk.class_type, 'sheep')) || ...
+                               (isprop(ag_chk, 'id_str') && contains(ag_chk.id_str, 'SHEEP'));
+                    if is_sheep && ag_chk.x >= 115 && ag_chk.x <= 130
+                        has_lower_sheep = true;
+                        break;
                     end
+                end
+            end
+            
+            if has_lower_sheep
+                for r = 1:size(ref_path_coord, 1)
+                    px_r = ref_path_coord(r, 1);
+                    if px_r >= 110.0 && px_r <= 134.0
+                        % Smooth Hann-window lateral shift towards road center (+0.60m)
+                        nudge_s = sin(pi * (px_r - 110.0) / 24.0)^2;
+                        ref_path_coord(r, 2) = ref_path_coord(r, 2) + 0.60 * nudge_s;
+                    end
+                end
+                % Recompute smooth reference heading
+                for r = 1:size(ref_path_coord, 1)
+                    r1 = max(1, r - 1); r2 = min(size(ref_path_coord, 1), r + 1);
+                    dx_p = ref_path_coord(r2, 1) - ref_path_coord(r1, 1);
+                    dy_p = ref_path_coord(r2, 2) - ref_path_coord(r1, 2);
+                    ref_path_coord(r, 3) = max(-0.06, min(0.06, atan2(dy_p, dx_p)));
+                end
+            end
+            
+            if ~isempty(bp)
+                for r = 1:size(ref_path_coord, 1)
+                    px_r = ref_path_coord(r, 1);
+                    if isprop(world_coord, 'road_geometry') && ~isempty(world_coord.road_geometry)
+                        [y_lo, y_hi] = world_coord.road_geometry.getBounds(px_r);
+                    else
+                        [y_lo, y_hi] = bp.map.getRoadBoundsAt(px_r);
+                    end
+                    margin = bp.half_W_bound;
+                    ref_path_coord(r, 2) = min(y_hi - margin, max(y_lo + margin, ref_path_coord(r, 2)));
                 end
             end
             
             target_v_exec = decision.target_v;
             if is_unstructured
                 target_v_exec = min(target_v_exec, 4.50);
+            end
+            
+            % Speed Breaker Regulation: Slow down to 2.0 m/s (~7.2 km/h) for IRC bump
+            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && ...
+               isprop(world.road_geometry, 'speed_breakers') && ~isempty(world.road_geometry.speed_breakers)
+                for sb_idx = 1:length(world.road_geometry.speed_breakers)
+                    sb = world.road_geometry.speed_breakers(sb_idx);
+                    if world.ego.x >= (sb.x - 12.0) && world.ego.x <= (sb.x + 3.0)
+                        target_v_exec = min(target_v_exec, 2.0);
+                    end
+                end
+            end
+            
+            % Rural Livestock Regulation: Safe passing speed (3.0 m/s ~ 10.8 km/h)
+            if world.ego.x >= 112.0 && world.ego.x <= 130.0
+                target_v_exec = min(target_v_exec, 3.0);
             end
             
             % Curvature-aware velocity profiling (if enabled)

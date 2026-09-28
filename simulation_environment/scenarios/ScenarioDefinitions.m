@@ -983,6 +983,7 @@ function world = scenario_handdrawn_village_canal(world, cfg, varargin)
     % Handdrawn Traffic Generator
     world.traffic_mode = 'stochastic';
     world.traffic_generator = HanddrawnVillageTrafficGenerator(sim_seed);
+    world.traffic_generator.sheep_side = 'upper';
     world.traffic_generator.populateScene(world.road_geometry, world.ego);
     world.agents = world.traffic_generator.getLegacyAgentsArray();
     world.n_agents = length(world.agents);
@@ -1040,9 +1041,11 @@ function world = scenario_handdrawn_village_corrected(world, cfg, varargin)
     world = world.setStaticObstacle(2, 84.0, 0.85, 1.4, 1.0); % Pothole 2
     for j = 3:cfg.n_static_obs, world = world.setStaticObstacle(j, -100, -100, 1.0, 1.0); end
     
-    % Handdrawn Traffic Generator
+    % Handdrawn Traffic Generator (16 sheep on lower road verge, same side car travels towards)
     world.traffic_mode = 'stochastic';
     world.traffic_generator = HanddrawnVillageTrafficGenerator(sim_seed);
+    world.traffic_generator.sheep_side = 'lower';
+    world.traffic_generator.n_sheep = 16;
     world.traffic_generator.populateScene(world.road_geometry, world.ego);
     world.agents = world.traffic_generator.getLegacyAgentsArray();
     world.n_agents = length(world.agents);

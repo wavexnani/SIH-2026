@@ -18,7 +18,9 @@ classdef HanddrawnVillageTrafficGenerator < handle
         next_id                 double = 1
         
         % Lifecycle counters
-        total_spawned           double = 15
+        total_spawned           double = 23
+        sheep_side              char = 'lower' % 'lower' (corrected) or 'upper' (legacy)
+        n_sheep                 double = 16
         pedestrian_crossings    double = 0
         cattle_crossings        double = 0
         sheep_crossings         double = 0
@@ -114,58 +116,45 @@ classdef HanddrawnVillageTrafficGenerator < handle
             ag7.behavior_state = 'SPEED_BREAKER_CRAWL';
             ag7.theta = pi;
             
-            % Sheep Flock: 8 sheep tightly clustered on the curved road section (outer road edge & verge)
-            % Spanning x in [122.2, 125.6] m and y near outer road edge / verge
-            % Sheep 1 (Upper road edge)
-            y_c8 = getYc(122.6);
-            ag8 = TrafficAgent(8, 'sheep', 122.6, y_c8 + 2.45, 0.12, 1);
-            ag8.id_str = 'SHEEP_01';
-            ag8.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 2 (Verge grass)
-            y_c9 = getYc(123.5);
-            ag9 = TrafficAgent(9, 'sheep', 123.5, y_c9 + 2.65, 0.10, 1);
-            ag9.id_str = 'SHEEP_02';
-            ag9.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 3 (Road edge / verge boundary)
-            y_c10 = getYc(124.2);
-            ag10 = TrafficAgent(10, 'sheep', 124.2, y_c10 + 2.35, 0.14, 1);
-            ag10.id_str = 'SHEEP_03';
-            ag10.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 4 (Verge grass)
-            y_c11 = getYc(124.8);
-            ag11 = TrafficAgent(11, 'sheep', 124.8, y_c11 + 2.75, 0.08, 1);
-            ag11.id_str = 'SHEEP_04';
-            ag11.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 5 (Outer shoulder verge)
-            y_c12 = getYc(123.1);
-            ag12 = TrafficAgent(12, 'sheep', 123.1, y_c12 + 2.85, 0.11, 1);
-            ag12.id_str = 'SHEEP_05';
-            ag12.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 6 (Road edge / curve shoulder)
-            y_c13 = getYc(125.6);
-            ag13 = TrafficAgent(13, 'sheep', 125.6, y_c13 + 2.50, 0.13, 1);
-            ag13.id_str = 'SHEEP_06';
-            ag13.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 7 (Inner flock edge)
-            y_c14 = getYc(125.0);
-            ag14 = TrafficAgent(14, 'sheep', 125.0, y_c14 + 2.25, 0.09, 1);
-            ag14.id_str = 'SHEEP_07';
-            ag14.behavior_state = 'GRAZING_FLOCK';
-            
-            % Sheep 8 (Center flock cluster)
-            y_c15 = getYc(123.8);
-            ag15 = TrafficAgent(15, 'sheep', 123.8, y_c15 + 2.45, 0.12, 1);
-            ag15.id_str = 'SHEEP_08';
-            ag15.behavior_state = 'GRAZING_FLOCK';
-            
-            obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; ag8; ag9; ag10; ag11; ag12; ag13; ag14; ag15];
-            obj.next_id = 16;
+            % Sheep Flock: 16 sheep tightly clustered on the curved road section (lower road edge & verge)
+            if strcmpi(obj.sheep_side, 'upper')
+                % Legacy baseline: 8 sheep on upper verge
+                y_c8 = getYc(122.6); ag8 = TrafficAgent(8, 'sheep', 122.6, y_c8 + 2.45, 0.12, 1); ag8.id_str = 'SHEEP_01'; ag8.behavior_state = 'GRAZING_FLOCK';
+                y_c9 = getYc(123.5); ag9 = TrafficAgent(9, 'sheep', 123.5, y_c9 + 2.65, 0.10, 1); ag9.id_str = 'SHEEP_02'; ag9.behavior_state = 'GRAZING_FLOCK';
+                y_c10 = getYc(124.2); ag10 = TrafficAgent(10, 'sheep', 124.2, y_c10 + 2.35, 0.14, 1); ag10.id_str = 'SHEEP_03'; ag10.behavior_state = 'GRAZING_FLOCK';
+                y_c11 = getYc(124.8); ag11 = TrafficAgent(11, 'sheep', 124.8, y_c11 + 2.75, 0.08, 1); ag11.id_str = 'SHEEP_04'; ag11.behavior_state = 'GRAZING_FLOCK';
+                y_c12 = getYc(123.1); ag12 = TrafficAgent(12, 'sheep', 123.1, y_c12 + 2.85, 0.11, 1); ag12.id_str = 'SHEEP_05'; ag12.behavior_state = 'GRAZING_FLOCK';
+                y_c13 = getYc(125.6); ag13 = TrafficAgent(13, 'sheep', 125.6, y_c13 + 2.50, 0.13, 1); ag13.id_str = 'SHEEP_06'; ag13.behavior_state = 'GRAZING_FLOCK';
+                y_c14 = getYc(125.0); ag14 = TrafficAgent(14, 'sheep', 125.0, y_c14 + 2.25, 0.09, 1); ag14.id_str = 'SHEEP_07'; ag14.behavior_state = 'GRAZING_FLOCK';
+                y_c15 = getYc(123.8); ag15 = TrafficAgent(15, 'sheep', 123.8, y_c15 + 2.45, 0.12, 1); ag15.id_str = 'SHEEP_08'; ag15.behavior_state = 'GRAZING_FLOCK';
+                obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; ag8; ag9; ag10; ag11; ag12; ag13; ag14; ag15];
+                obj.next_id = 16;
+            else
+                % Corrected: 16 sheep tightly clustered on the LOWER side of the road
+                % Spanning x in [119.5, 124.6] m along lower shoulder & road edge (same side car is travelling towards)
+                sheep_x = [119.5, 120.2, 120.8, 121.4, 121.9, 122.5, 123.1, 123.7, ...
+                           120.0, 120.7, 121.3, 122.0, 122.6, 123.3, 124.0, 124.6];
+                sheep_dy = [-2.75, -2.95, -2.70, -3.10, -2.85, -3.20, -2.75, -3.05, ...
+                            -3.25, -3.40, -3.20, -3.45, -3.30, -3.40, -3.20, -3.35];
+                sheep_vx = [0.06, 0.04, 0.08, 0.05, 0.07, 0.04, 0.06, 0.05, ...
+                            0.04, 0.05, 0.03, 0.06, 0.04, 0.04, 0.05, 0.04];
+                
+                sheep_agents = [];
+                for s_i = 1:16
+                    sx = sheep_x(s_i);
+                    y_cs = getYc(sx);
+                    sy = y_cs + sheep_dy(s_i);
+                    sh_ag = TrafficAgent(7 + s_i, 'sheep', sx, sy, sheep_vx(s_i), 1);
+                    sh_ag.id_str = sprintf('SHEEP_%02d', s_i);
+                    sh_ag.length = 1.05;
+                    sh_ag.width = 0.55;
+                    sh_ag.behavior_state = 'GRAZING_FLOCK';
+                    sheep_agents = [sheep_agents; sh_ag];
+                end
+                
+                obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; sheep_agents];
+                obj.next_id = 24;
+            end
             obj.pedestrian_crossings = 1;
             obj.cattle_crossings = 0;
             obj.sheep_crossings = 2;
@@ -320,8 +309,12 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 ped1.y = 0.40;
             end
             
-            % 8. Step Sheep Flock (8 sheep with Boids flocking: cohesion, separation, foraging & collective startle)
-            sheep_ids = 8:15;
+            % 8. Step Sheep Flock (16 sheep with Boids flocking: cohesion, separation, foraging & startle)
+            if strcmpi(obj.sheep_side, 'upper')
+                sheep_ids = 8:15;
+            else
+                sheep_ids = 8:23;
+            end
             
             % Compute local flock centroid
             x_flock = 0.0; y_flock = 0.0; n_flock = 0;
@@ -346,29 +339,41 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 
                 if ~isempty(road_geom)
                     [y_c_sh, th_sh, ~] = road_geom.getCenterline(sh.x);
-                    [~, y_max_sh] = road_geom.getBounds(sh.x);
+                    [y_min_sh, y_max_sh] = road_geom.getBounds(sh.x);
                 else
-                    y_c_sh = 3.0; th_sh = 0.0; y_max_sh = 6.0;
+                    y_c_sh = 3.0; th_sh = 0.0; y_min_sh = 0.0; y_max_sh = 6.0;
                 end
                 
-                % Individual nominal lateral anchor within the flock band
-                switch sid
-                    case 8,  y_nom = y_c_sh + 2.45;
-                    case 9,  y_nom = y_c_sh + 2.65;
-                    case 10, y_nom = y_c_sh + 2.35;
-                    case 11, y_nom = y_c_sh + 2.75;
-                    case 12, y_nom = y_c_sh + 2.85;
-                    case 13, y_nom = y_c_sh + 2.50;
-                    case 14, y_nom = y_c_sh + 2.25;
-                    case 15, y_nom = y_c_sh + 2.45;
-                    otherwise, y_nom = y_c_sh + 2.50;
+                if strcmpi(obj.sheep_side, 'upper')
+                    % Legacy upper nominal anchors
+                    switch sid
+                        case 8,  y_nom = y_c_sh + 2.45;
+                        case 9,  y_nom = y_c_sh + 2.65;
+                        case 10, y_nom = y_c_sh + 2.35;
+                        case 11, y_nom = y_c_sh + 2.75;
+                        case 12, y_nom = y_c_sh + 2.85;
+                        case 13, y_nom = y_c_sh + 2.50;
+                        case 14, y_nom = y_c_sh + 2.25;
+                        case 15, y_nom = y_c_sh + 2.45;
+                        otherwise, y_nom = y_c_sh + 2.50;
+                    end
+                else
+                    % Lower side nominal anchors (resting & grazing along lower road edge)
+                    s_idx = sid - 7;
+                    dy_list = [-2.75, -2.95, -2.70, -3.10, -2.85, -3.20, -2.75, -3.05, ...
+                               -3.25, -3.40, -3.20, -3.45, -3.30, -3.40, -3.20, -3.35];
+                    if s_idx >= 1 && s_idx <= length(dy_list)
+                        y_nom = y_c_sh + dy_list(s_idx);
+                    else
+                        y_nom = y_c_sh - 2.50;
+                    end
                 end
                 
                 % Boids Flocking Vector 1: Cohesion toward flock centroid
                 coh_x = 0.08 * (x_flock - sh.x);
                 coh_y = 0.08 * (y_flock - sh.y);
                 
-                % Boids Flocking Vector 2: Pairwise Separation (repulsion from close mates < 0.75m)
+                % Boids Flocking Vector 2: Pairwise Separation (repulsion from close mates < 0.70m)
                 rep_x = 0.0; rep_y = 0.0;
                 for oid = sheep_ids
                     if oid == sid, continue; end
@@ -377,34 +382,40 @@ classdef HanddrawnVillageTrafficGenerator < handle
                     dx_so = sh.x - other.x;
                     dy_so = sh.y - other.y;
                     d_so = hypot(dx_so, dy_so);
-                    if d_so < 0.75 && d_so > 1e-4
-                        rep_mag = (0.75 - d_so) / d_so;
+                    if d_so < 0.70 && d_so > 1e-4
+                        rep_mag = (0.70 - d_so) / d_so;
                         rep_x = rep_x + 0.35 * dx_so * rep_mag;
                         rep_y = rep_y + 0.35 * dy_so * rep_mag;
                     end
                 end
                 
-                if dist_to_ego < 12.0 && ego_state.x < sh.x
-                    % Collective startle/scatter: sheep retreat outward onto roadside grass verge
-                    sh.y = min(y_max_sh + 0.70, sh.y + 0.30 * dt);
-                    sh.vy = 0.30;
+                if dist_to_ego < 10.0 && ego_state.x < sh.x
+                    % Collective startle/scatter
+                    if strcmpi(obj.sheep_side, 'upper')
+                        sh.y = min(y_max_sh + 0.70, sh.y + 0.30 * dt);
+                        sh.vy = 0.30;
+                        sh.theta = th_sh + pi/2 + 0.15 * (rand(obj.rng_stream) - 0.5);
+                    else
+                        sh.y = max(y_min_sh - 0.70, sh.y - 0.25 * dt);
+                        sh.vy = -0.25;
+                        sh.theta = th_sh - pi/2 + 0.15 * (rand(obj.rng_stream) - 0.5);
+                    end
                     sh.vx = coh_x + rep_x + 0.04 * (rand(obj.rng_stream) - 0.5);
-                    sh.theta = th_sh + pi/2 + 0.15 * (rand(obj.rng_stream) - 0.5);
                     sh.v = hypot(sh.vx, sh.vy);
                     sh.behavior_state = 'SCATTERING_FLOCK';
                 else
                     % Natural grazing & foraging wander
-                    drift_x = 0.04 * (rand(obj.rng_stream) - 0.5);
-                    drift_y = 0.04 * (rand(obj.rng_stream) - 0.5);
+                    drift_x = 0.03 * (rand(obj.rng_stream) - 0.5);
+                    drift_y = 0.03 * (rand(obj.rng_stream) - 0.5);
                     pull_y = 0.20 * (y_nom - sh.y);
                     
                     sh.vx = coh_x + rep_x + drift_x;
                     sh.vy = coh_y + rep_y + pull_y + drift_y;
                     
                     v_mag = hypot(sh.vx, sh.vy);
-                    if v_mag > 0.20
-                        sh.vx = (sh.vx / v_mag) * 0.20;
-                        sh.vy = (sh.vy / v_mag) * 0.20;
+                    if v_mag > 0.15
+                        sh.vx = (sh.vx / v_mag) * 0.15;
+                        sh.vy = (sh.vy / v_mag) * 0.15;
                     end
                     
                     sh.x = sh.x + sh.vx * dt;
@@ -414,7 +425,7 @@ classdef HanddrawnVillageTrafficGenerator < handle
                     if sh.v > 0.02
                         sh.theta = atan2(sh.vy, sh.vx);
                     else
-                        sh.theta = th_sh + 0.25 * (rand(obj.rng_stream) - 0.5);
+                        sh.theta = th_sh + 0.20 * (rand(obj.rng_stream) - 0.5);
                     end
                     sh.behavior_state = 'GRAZING_FLOCK';
                 end
