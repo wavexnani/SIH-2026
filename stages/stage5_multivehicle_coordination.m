@@ -489,11 +489,13 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
                 if isprop(ag, 'behavior_state') && ~isempty(ag.behavior_state), ag_state = ag.behavior_state; end
                 ag_dir = 1;
                 if isprop(ag, 'direction') && ~isempty(ag.direction), ag_dir = ag.direction; end
+                ag_hdg = 0.0;
+                if isprop(ag, 'heading') && ~isempty(ag.heading), ag_hdg = ag.heading; end
                 
                 gt_agents = [gt_agents; struct('id', ag.id, 'id_str', ag_id_str, 'type', ag_type, ...
                                                'behavior_state', ag_state, 'direction', ag_dir, ...
                                                'x', ag.x, 'y', ag.y, 'vx', ag.vx, 'vy', ag.vy, ...
-                                               'length', ag.length, 'width', ag.width)];
+                                               'heading', ag_hdg, 'length', ag.length, 'width', ag.width)];
             end
         end
         slog.groundTruth.agents = gt_agents;

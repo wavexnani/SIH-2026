@@ -9,7 +9,7 @@ classdef HanddrawnVillageTrafficGenerator < handle
     %   5. Lead Car cruising then decelerating for speed breaker and crossing pedestrian
     %   6. Reckless Pedestrian 2 crossing with stochastic Brownian jitter without caring about traffic
     %   7. Oncoming Car 2 crawling over speed breaker/bridge then accelerating
-    %   8-11. Cattle Herd (4 cows) with stochastic 2D wandering and proximity response
+    %   8-15. Sheep Flock (8 sheep) with boids flocking (cohesion, separation, foraging & startle)
     
     properties
         seed                    double = 42
@@ -18,9 +18,10 @@ classdef HanddrawnVillageTrafficGenerator < handle
         next_id                 double = 1
         
         % Lifecycle counters
-        total_spawned           double = 11
+        total_spawned           double = 15
         pedestrian_crossings    double = 0
         cattle_crossings        double = 0
+        sheep_crossings         double = 0
         vehicles_passed_ego     double = 0
         max_simultaneous_active double = 0
         passenger_spawned       logical = false
@@ -113,35 +114,61 @@ classdef HanddrawnVillageTrafficGenerator < handle
             ag7.behavior_state = 'SPEED_BREAKER_CRAWL';
             ag7.theta = pi;
             
-            % Cattle Herd: 4 individual cows on the curved road section (outer road edge & verge)
-            % Cow 1 (Upper road edge & shoulder near curve entry)
-            y_c8 = getYc(120.0);
-            ag8 = TrafficAgent(8, 'cattle', 120.0, y_c8 + 2.35, 0.15, 1);
-            ag8.id_str = 'COW_01';
-            ag8.behavior_state = 'GRAZING';
+            % Sheep Flock: 8 sheep tightly clustered on the curved road section (outer road edge & verge)
+            % Spanning x in [122.2, 125.6] m and y near outer road edge / verge
+            % Sheep 1 (Upper road edge)
+            y_c8 = getYc(122.6);
+            ag8 = TrafficAgent(8, 'sheep', 122.6, y_c8 + 2.45, 0.12, 1);
+            ag8.id_str = 'SHEEP_01';
+            ag8.behavior_state = 'GRAZING_FLOCK';
             
-            % Cow 2 (Upper verge & road boundary)
-            y_c9 = getYc(125.0);
-            ag9 = TrafficAgent(9, 'cattle', 125.0, y_c9 + 2.45, 0.12, 1);
-            ag9.id_str = 'COW_02';
-            ag9.behavior_state = 'GRAZING';
+            % Sheep 2 (Verge grass)
+            y_c9 = getYc(123.5);
+            ag9 = TrafficAgent(9, 'sheep', 123.5, y_c9 + 2.65, 0.10, 1);
+            ag9.id_str = 'SHEEP_02';
+            ag9.behavior_state = 'GRAZING_FLOCK';
             
-            % Cow 3 (Verge / shoulder grass)
-            y_c10 = getYc(131.0);
-            ag10 = TrafficAgent(10, 'cattle', 131.0, y_c10 + 2.55, 0.10, 1);
-            ag10.id_str = 'COW_03';
-            ag10.behavior_state = 'GRAZING';
+            % Sheep 3 (Road edge / verge boundary)
+            y_c10 = getYc(124.2);
+            ag10 = TrafficAgent(10, 'sheep', 124.2, y_c10 + 2.35, 0.14, 1);
+            ag10.id_str = 'SHEEP_03';
+            ag10.behavior_state = 'GRAZING_FLOCK';
             
-            % Cow 4 (Upper road curve edge / shoulder)
-            y_c11 = getYc(137.0);
-            ag11 = TrafficAgent(11, 'cattle', 137.0, y_c11 + 2.50, 0.15, 1);
-            ag11.id_str = 'COW_04';
-            ag11.behavior_state = 'GRAZING';
+            % Sheep 4 (Verge grass)
+            y_c11 = getYc(124.8);
+            ag11 = TrafficAgent(11, 'sheep', 124.8, y_c11 + 2.75, 0.08, 1);
+            ag11.id_str = 'SHEEP_04';
+            ag11.behavior_state = 'GRAZING_FLOCK';
             
-            obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; ag8; ag9; ag10; ag11];
-            obj.next_id = 12;
+            % Sheep 5 (Outer shoulder verge)
+            y_c12 = getYc(123.1);
+            ag12 = TrafficAgent(12, 'sheep', 123.1, y_c12 + 2.85, 0.11, 1);
+            ag12.id_str = 'SHEEP_05';
+            ag12.behavior_state = 'GRAZING_FLOCK';
+            
+            % Sheep 6 (Road edge / curve shoulder)
+            y_c13 = getYc(125.6);
+            ag13 = TrafficAgent(13, 'sheep', 125.6, y_c13 + 2.50, 0.13, 1);
+            ag13.id_str = 'SHEEP_06';
+            ag13.behavior_state = 'GRAZING_FLOCK';
+            
+            % Sheep 7 (Inner flock edge)
+            y_c14 = getYc(125.0);
+            ag14 = TrafficAgent(14, 'sheep', 125.0, y_c14 + 2.25, 0.09, 1);
+            ag14.id_str = 'SHEEP_07';
+            ag14.behavior_state = 'GRAZING_FLOCK';
+            
+            % Sheep 8 (Center flock cluster)
+            y_c15 = getYc(123.8);
+            ag15 = TrafficAgent(15, 'sheep', 123.8, y_c15 + 2.45, 0.12, 1);
+            ag15.id_str = 'SHEEP_08';
+            ag15.behavior_state = 'GRAZING_FLOCK';
+            
+            obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; ag8; ag9; ag10; ag11; ag12; ag13; ag14; ag15];
+            obj.next_id = 16;
             obj.pedestrian_crossings = 1;
-            obj.cattle_crossings = 2;
+            obj.cattle_crossings = 0;
+            obj.sheep_crossings = 2;
         end
         
         function step(obj, dt, sim_time, road_geom, ego_state)
@@ -293,43 +320,103 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 ped1.y = 0.40;
             end
             
-            % 8. Step Cattle Herd (4 individual cows with localized grazing & proximity reaction)
-            for c_id = 8:11
-                cow = obj.getAgentById(c_id);
-                if isempty(cow) || ~cow.is_active, continue; end
+            % 8. Step Sheep Flock (8 sheep with Boids flocking: cohesion, separation, foraging & collective startle)
+            sheep_ids = 8:15;
+            
+            % Compute local flock centroid
+            x_flock = 0.0; y_flock = 0.0; n_flock = 0;
+            for sid = sheep_ids
+                sh = obj.getAgentById(sid);
+                if ~isempty(sh) && sh.is_active
+                    x_flock = x_flock + sh.x;
+                    y_flock = y_flock + sh.y;
+                    n_flock = n_flock + 1;
+                end
+            end
+            if n_flock > 0
+                x_flock = x_flock / n_flock;
+                y_flock = y_flock / n_flock;
+            end
+            
+            for sid = sheep_ids
+                sh = obj.getAgentById(sid);
+                if isempty(sh) || ~sh.is_active, continue; end
                 
-                dist_to_ego = hypot(cow.x - ego_state.x, cow.y - ego_state.y);
+                dist_to_ego = hypot(sh.x - ego_state.x, sh.y - ego_state.y);
                 
                 if ~isempty(road_geom)
-                    [y_c_cow, th_cow, ~] = road_geom.getCenterline(cow.x);
-                    [y_min_cow, y_max_cow] = road_geom.getBounds(cow.x);
+                    [y_c_sh, th_sh, ~] = road_geom.getCenterline(sh.x);
+                    [~, y_max_sh] = road_geom.getBounds(sh.x);
                 else
-                    y_c_cow = 3.0; th_cow = 0.0; y_min_cow = 0.0; y_max_cow = 6.0;
+                    y_c_sh = 3.0; th_sh = 0.0; y_max_sh = 6.0;
                 end
                 
-                % Desired grazing lateral offset (cluster along upper road edge and outer shoulder verge)
-                switch c_id
-                    case 8,  y_nom = y_c_cow + 2.35;
-                    case 9,  y_nom = y_c_cow + 2.45;
-                    case 10, y_nom = y_c_cow + 2.55;
-                    case 11, y_nom = y_c_cow + 2.50;
+                % Individual nominal lateral anchor within the flock band
+                switch sid
+                    case 8,  y_nom = y_c_sh + 2.45;
+                    case 9,  y_nom = y_c_sh + 2.65;
+                    case 10, y_nom = y_c_sh + 2.35;
+                    case 11, y_nom = y_c_sh + 2.75;
+                    case 12, y_nom = y_c_sh + 2.85;
+                    case 13, y_nom = y_c_sh + 2.50;
+                    case 14, y_nom = y_c_sh + 2.25;
+                    case 15, y_nom = y_c_sh + 2.45;
+                    otherwise, y_nom = y_c_sh + 2.50;
                 end
                 
-                if dist_to_ego < 12.0 && ego_state.x < cow.x
-                    % Proximity alert: cow moves further onto the upper shoulder away from traffic lane
-                    cow.y = min(y_max_cow + 0.6, cow.y + 0.35 * dt);
-                    cow.vy = 0.35;
-                    cow.vx = 0.04 * (rand(obj.rng_stream) - 0.5);
-                    cow.behavior_state = 'SCATTERING_SHOULDER';
+                % Boids Flocking Vector 1: Cohesion toward flock centroid
+                coh_x = 0.08 * (x_flock - sh.x);
+                coh_y = 0.08 * (y_flock - sh.y);
+                
+                % Boids Flocking Vector 2: Pairwise Separation (repulsion from close mates < 0.75m)
+                rep_x = 0.0; rep_y = 0.0;
+                for oid = sheep_ids
+                    if oid == sid, continue; end
+                    other = obj.getAgentById(oid);
+                    if isempty(other) || ~other.is_active, continue; end
+                    dx_so = sh.x - other.x;
+                    dy_so = sh.y - other.y;
+                    d_so = hypot(dx_so, dy_so);
+                    if d_so < 0.75 && d_so > 1e-4
+                        rep_mag = (0.75 - d_so) / d_so;
+                        rep_x = rep_x + 0.35 * dx_so * rep_mag;
+                        rep_y = rep_y + 0.35 * dy_so * rep_mag;
+                    end
+                end
+                
+                if dist_to_ego < 12.0 && ego_state.x < sh.x
+                    % Collective startle/scatter: sheep retreat outward onto roadside grass verge
+                    sh.y = min(y_max_sh + 0.70, sh.y + 0.30 * dt);
+                    sh.vy = 0.30;
+                    sh.vx = coh_x + rep_x + 0.04 * (rand(obj.rng_stream) - 0.5);
+                    sh.theta = th_sh + pi/2 + 0.15 * (rand(obj.rng_stream) - 0.5);
+                    sh.v = hypot(sh.vx, sh.vy);
+                    sh.behavior_state = 'SCATTERING_FLOCK';
                 else
-                    % Localized grazing: micro-wander around y_nom
-                    dy_nom = y_nom - cow.y;
-                    cow.vy = 0.15 * dy_nom + 0.04 * (rand(obj.rng_stream) - 0.5);
-                    cow.vx = 0.04 * (rand(obj.rng_stream) - 0.5);
-                    cow.y = cow.y + cow.vy * dt;
-                    cow.x = cow.x + cow.vx * dt;
-                    cow.theta = th_cow + 0.15 * (rand(obj.rng_stream) - 0.5);
-                    cow.behavior_state = 'GRAZING';
+                    % Natural grazing & foraging wander
+                    drift_x = 0.04 * (rand(obj.rng_stream) - 0.5);
+                    drift_y = 0.04 * (rand(obj.rng_stream) - 0.5);
+                    pull_y = 0.20 * (y_nom - sh.y);
+                    
+                    sh.vx = coh_x + rep_x + drift_x;
+                    sh.vy = coh_y + rep_y + pull_y + drift_y;
+                    
+                    v_mag = hypot(sh.vx, sh.vy);
+                    if v_mag > 0.20
+                        sh.vx = (sh.vx / v_mag) * 0.20;
+                        sh.vy = (sh.vy / v_mag) * 0.20;
+                    end
+                    
+                    sh.x = sh.x + sh.vx * dt;
+                    sh.y = sh.y + sh.vy * dt;
+                    sh.v = hypot(sh.vx, sh.vy);
+                    
+                    if sh.v > 0.02
+                        sh.theta = atan2(sh.vy, sh.vx);
+                    else
+                        sh.theta = th_sh + 0.25 * (rand(obj.rng_stream) - 0.5);
+                    end
+                    sh.behavior_state = 'GRAZING_FLOCK';
                 end
             end
             
@@ -374,15 +461,15 @@ classdef HanddrawnVillageTrafficGenerator < handle
         end
         
         function counts = getClassCounts(obj)
-            counts = struct('car', 3, 'bike', 1, 'auto', 1, 'pedestrian', 2, 'cattle', 4);
+            counts = struct('car', 3, 'bike', 1, 'auto', 1, 'pedestrian', 2, 'cattle', 0, 'sheep', 8);
         end
         
         function counts = getSpawnCounts(obj)
-            counts = struct('car', 3, 'bike', 1, 'auto', 1, 'pedestrian', 2, 'cattle', 4);
+            counts = struct('car', 3, 'bike', 1, 'auto', 1, 'pedestrian', 2, 'cattle', 0, 'sheep', 8);
         end
         
         function active_counts = getActiveCounts(obj)
-            active_counts = struct('car', 0, 'bike', 0, 'auto', 0, 'pedestrian', 0, 'cattle', 0);
+            active_counts = struct('car', 0, 'bike', 0, 'auto', 0, 'pedestrian', 0, 'cattle', 0, 'sheep', 0);
             for i = 1:length(obj.active_agents)
                 ag = obj.active_agents(i);
                 if isfield(active_counts, ag.class_type)

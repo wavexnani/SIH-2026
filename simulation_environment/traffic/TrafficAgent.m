@@ -106,8 +106,11 @@ classdef TrafficAgent < handle
                 case {'ped', 'pedestrian'}
                     obj.id_str = sprintf('PED_%03d', obj.id);
                     obj.class_type = 'pedestrian';
-                case 'cattle'
+                case {'cattle', 'cow'}
                     obj.id_str = sprintf('CATTLE_%03d', obj.id);
+                case {'sheep', 'flock'}
+                    obj.id_str = sprintf('SHEEP_%03d', obj.id);
+                    obj.class_type = 'sheep';
                 otherwise
                     obj.id_str = sprintf('AGENT_%03d', obj.id);
             end
@@ -205,6 +208,15 @@ classdef TrafficAgent < handle
                         obj.behavior_state = 'GRAZING';
                         obj.v_target = 0.1;
                     end
+                    
+                case 'sheep'
+                    obj.length = 1.05;
+                    obj.width = 0.55;
+                    obj.wheelbase = 0.65;
+                    obj.a_max = 1.0;
+                    obj.a_min = -1.5;
+                    obj.behavior_state = 'GRAZING';
+                    obj.v_target = 0.15;
             end
         end
         
@@ -234,7 +246,7 @@ classdef TrafficAgent < handle
                 case 'pedestrian'
                     obj.stepPedestrian(dt, y_center_r, y_min_r, y_max_r, all_agents, ego_state);
                     
-                case 'cattle'
+                case {'cattle', 'sheep'}
                     obj.stepCattle(dt, y_center_r, y_min_r, y_max_r, all_agents, ego_state);
             end
         end

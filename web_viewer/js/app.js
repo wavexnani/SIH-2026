@@ -890,7 +890,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ctx.beginPath();
           ctx.arc(0, 0, (Math.max(L, W) / 2) * s, 0, 2 * Math.PI);
           ctx.stroke();
-        } else if (type === 'cattle') {
+        } else if (type === 'cattle' || type === 'sheep') {
           ctx.beginPath();
           ctx.ellipse(0, 0, (L / 2) * s, (W / 2) * s, 0, 0, 2 * Math.PI);
           ctx.stroke();
@@ -1066,6 +1066,89 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fill();
     },
 
+    drawSheepSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Tiny dark hooves extending slightly
+      ctx.fillStyle = '#1e293b';
+      // Front hooves
+      ctx.fillRect(halfL * 0.35, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+      ctx.fillRect(halfL * 0.35, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+      // Rear hooves
+      ctx.fillRect(-halfL * 0.55, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+      ctx.fillRect(-halfL * 0.55, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+
+      // 2. Fluffy Woolly Body (Plump fleece with cloud-like scalloped wool tufts)
+      // Wool base shadow
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.ellipse(-halfL * 0.05, 0, halfL * 0.82, halfW * 0.88, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Fluffy wool puffs (overlapping ivory/cream clouds)
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.0;
+
+      const woolTufts = [
+        { x: -halfL * 0.55, y: -halfW * 0.45, r: halfW * 0.45 },
+        { x: -halfL * 0.55, y: halfW * 0.45,  r: halfW * 0.45 },
+        { x: -halfL * 0.65, y: 0,              r: halfW * 0.48 },
+        { x: -halfL * 0.15, y: -halfW * 0.55, r: halfW * 0.46 },
+        { x: -halfL * 0.15, y: halfW * 0.55,  r: halfW * 0.46 },
+        { x: -halfL * 0.10, y: 0,              r: halfW * 0.55 },
+        { x: halfL * 0.30,  y: -halfW * 0.45, r: halfW * 0.44 },
+        { x: halfL * 0.30,  y: halfW * 0.45,  r: halfW * 0.44 },
+        { x: halfL * 0.35,  y: 0,              r: halfW * 0.50 }
+      ];
+
+      woolTufts.forEach(tuft => {
+        ctx.beginPath();
+        ctx.arc(tuft.x, tuft.y, tuft.r, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Fluffy wool tail
+      ctx.fillStyle = '#f1f5f9';
+      ctx.beginPath();
+      ctx.arc(-halfL * 0.85, 0, halfW * 0.30, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 3. Black/Charcoal Sheep Head & Snout (classic Suffolk / Indian indigenous sheep)
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.72, 0, halfL * 0.35, halfW * 0.42, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Muzzle / pinkish gray nose
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.98, 0, halfL * 0.12, halfW * 0.24, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Nostrils
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 1.02, -halfW * 0.10, 1.2, 1.2);
+      ctx.fillRect(halfL * 1.02, halfW * 0.05, 1.2, 1.2);
+
+      // Floppy cute ears
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.60, halfW * 0.60, halfL * 0.18, halfW * 0.22, 0.7, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.60, -halfW * 0.60, halfL * 0.18, halfW * 0.22, -0.7, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Head wool crown (forelock puff)
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.55, 0, halfW * 0.30, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
     drawMotorcycleSprite(ctx, s, L, W) {
       const halfL = (L / 2) * s;
       const halfW = (W / 2) * s;
@@ -1214,7 +1297,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (type === 'auto' || type === 'autorickshaw') {
           this.drawAutoRickshawSprite(ctx, s, L, W);
-        } else if (type === 'cattle') {
+        } else if (type === 'sheep' || (ag.id_str && ag.id_str.includes('SHEEP'))) {
+          this.drawSheepSprite(ctx, s, L, W);
+        } else if (type === 'cattle' || type === 'cow') {
           this.drawCattleSprite(ctx, s, L, W);
         } else if (type === 'bike' || type === 'motorcycle') {
           this.drawMotorcycleSprite(ctx, s, L, W);

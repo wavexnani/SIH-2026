@@ -943,7 +943,7 @@ function world = scenario_handdrawn_village_canal(world, cfg, varargin)
     %       * Lead Car (id=5, cruising then decelerating for speed breaker/pedestrian)
     %       * Reckless Pedestrian 2 (id=6, crossing with Brownian jitter)
     %       * Oncoming Car 2 (id=7, speed breaker crawl + accelerating)
-    %       * Cattle Herd (id=8..11, 4 cows with 2D stochastic wandering & proximity reaction)
+    %       * Sheep Flock (id=8..15, 8 sheep with realistic flocking boids behavior & proximity reaction)
     
     p = inputParser;
     addParameter(p, 'seed', 42, @isnumeric);
