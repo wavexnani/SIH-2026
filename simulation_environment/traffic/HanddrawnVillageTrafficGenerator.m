@@ -28,6 +28,7 @@ classdef HanddrawnVillageTrafficGenerator < handle
         max_simultaneous_active double = 0
         passenger_spawned       logical = false
         density_level           char = 'MEDIUM'
+        enable_blind_bend_agents logical = false
     end
     
     methods
@@ -67,12 +68,14 @@ classdef HanddrawnVillageTrafficGenerator < handle
             end
             
             % Agent 1: Fast Bike (Overtaking Ego, squeezing through bottleneck)
-            % Starts behind/beside ego in upper lane, v=10.5 m/s
+            % Starts behind/beside ego in upper lane, v=9.5 m/s
             y_c1 = getYc(3.0);
-            ag1 = TrafficAgent(1, 'bike', 3.0, y_c1 + 1.20, 10.5, 1);
+            ag1 = TrafficAgent(1, 'bike', 3.0, y_c1 + 1.15, 9.5, 1);
             ag1.id_str = 'BIKE_001';
-            ag1.v_target = 10.5;
-            ag1.behavior_state = 'CRUISING';
+            ag1.v_target = 9.5;
+            ag1.behavior_state = 'APPROACH';
+            ag1.length = 1.80;
+            ag1.width = 0.60;
             
             % Agent 2: Auto-Rickshaw (Slowing down and stopping to drop passenger)
             % Starts ahead in right lane (y=2.2m), v=3.5 m/s
@@ -155,6 +158,29 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 obj.active_agents = [ag1; ag2; ag4; ag5; ag6; ag7; sheep_agents];
                 obj.next_id = 24;
             end
+            
+            % Blind Bend Challenge Agents (Heavy Tractor + Motorcycle descending the bend)
+            if obj.enable_blind_bend_agents
+                y_c_tr = getYc(180.0);
+                ag_tr = TrafficAgent(24, 'truck', 180.0, y_c_tr + 1.25, 2.0, -1);
+                ag_tr.id_str = 'TRACTOR_001';
+                ag_tr.length = 5.8;
+                ag_tr.width = 2.2;
+                ag_tr.behavior_state = 'BLIND_BEND_CRAWL';
+                ag_tr.theta = pi;
+                
+                y_c_bk2 = getYc(190.0);
+                ag_bk2 = TrafficAgent(25, 'bike', 190.0, y_c_bk2 + 0.85, 2.8, -1);
+                ag_bk2.id_str = 'BIKE_002';
+                ag_bk2.length = 1.8;
+                ag_bk2.width = 0.6;
+                ag_bk2.behavior_state = 'BEND_DESCENT';
+                ag_bk2.theta = pi;
+                
+                obj.active_agents = [obj.active_agents; ag_tr; ag_bk2];
+                obj.next_id = 26;
+            end
+            
             obj.pedestrian_crossings = 1;
             obj.cattle_crossings = 0;
             obj.sheep_crossings = 2;
@@ -196,28 +222,54 @@ classdef HanddrawnVillageTrafficGenerator < handle
                 end
             end
             
-            % 2. Step Fast Bike
+            % 2. Step Fast Bike with Realistic Dynamics & Cut-In Maneuver
             bike_ag = obj.getAgentById(1);
             if ~isempty(bike_ag) && bike_ag.is_active
-                % Squeeze maneuver: stays in upper lane avoiding pothole 1 and auto
                 bike_ag.x = bike_ag.x + bike_ag.v * dt;
-                bike_ag.vx = bike_ag.v;
-                bike_ag.vy = 0.0;
-                if ~isempty(road_geom)
+                
+                [y_c_bike, th_bike] = deal(3.0, 0.0);
+                if ~isempty(road_geom) && ismethod(road_geom, 'getCenterline')
                     [y_c_bike, th_bike, ~] = road_geom.getCenterline(bike_ag.x);
-                    if bike_ag.x > 26.0
-                        bike_ag.y = min(y_c_bike + 1.85, bike_ag.y + 0.4 * dt);
-                    else
-                        bike_ag.y = y_c_bike + 1.10 + 0.10 * sin(bike_ag.x / 10.0);
-                    end
-                    bike_ag.theta = th_bike;
-                else
-                    if bike_ag.x > 26.0
-                        bike_ag.y = min(4.85, bike_ag.y + 0.4 * dt);
-                    else
-                        bike_ag.y = 4.10 + 0.10 * sin(bike_ag.x / 10.0);
-                    end
                 end
+                
+                % Dynamic 4-Phase Trajectory:
+                % Phase 1 (x < 6.0m): High-speed approach in upper lane
+                % Phase 2 (6.0 <= x <= 15.0m): Dynamic bank & cut-in across ego's front path to avoid oncoming car 1
+                % Phase 3 (15.0 < x <= 27.0m): Squeeze through center corridor between oncoming car 1 and auto/pothole
+                % Phase 4 (27.0 < x <= 36.0m): Re-center into upper lane and cruise
+                if bike_ag.x < 6.0
+                    bike_ag.behavior_state = 'APPROACH';
+                    y_off = 1.15;
+                    dy_dx = 0.0;
+                elseif bike_ag.x <= 15.0
+                    bike_ag.behavior_state = 'DYNAMIC_CUT_IN';
+                    s = (bike_ag.x - 6.0) / 9.0;
+                    h = 3.0 * s^2 - 2.0 * s^3;
+                    hp = (6.0 * s * (1.0 - s)) / 9.0;
+                    y_off = 1.15 - 1.30 * h;
+                    dy_dx = -1.30 * hp;
+                elseif bike_ag.x <= 27.0
+                    bike_ag.behavior_state = 'BOTTLENECK_SQUEEZE';
+                    y_off = -0.15;
+                    dy_dx = 0.0;
+                elseif bike_ag.x <= 36.0
+                    bike_ag.behavior_state = 'RECENTERING';
+                    s2 = (bike_ag.x - 27.0) / 9.0;
+                    h2 = 3.0 * s2^2 - 2.0 * s2^3;
+                    hp2 = (6.0 * s2 * (1.0 - s2)) / 9.0;
+                    y_off = -0.15 + 1.30 * h2;
+                    dy_dx = 1.30 * hp2;
+                else
+                    bike_ag.behavior_state = 'CRUISING';
+                    y_off = 1.15;
+                    dy_dx = 0.0;
+                end
+                
+                bike_ag.y = y_c_bike + y_off;
+                rel_psi = atan(dy_dx);
+                bike_ag.theta = th_bike + rel_psi;
+                bike_ag.vx = bike_ag.v * cos(rel_psi);
+                bike_ag.vy = bike_ag.v * sin(rel_psi);
             end
             
             % 3. Step Oncoming Car 1
@@ -225,9 +277,10 @@ classdef HanddrawnVillageTrafficGenerator < handle
             if ~isempty(car_onc1) && car_onc1.is_active
                 car_onc1.x = car_onc1.x - car_onc1.v * dt;
                 car_onc1.vx = -car_onc1.v;
+                car_onc1.vy = 0.0;
                 if ~isempty(road_geom)
                     [y_c_onc1, th_onc1, ~] = road_geom.getCenterline(car_onc1.x);
-                    car_onc1.y = y_c_onc1 + 1.30;
+                    car_onc1.y = y_c_onc1 + 1.40;
                     car_onc1.theta = th_onc1 + pi;
                 else
                     car_onc1.y = 4.40;
@@ -428,6 +481,30 @@ classdef HanddrawnVillageTrafficGenerator < handle
                         sh.theta = th_sh + 0.20 * (rand(obj.rng_stream) - 0.5);
                     end
                     sh.behavior_state = 'GRAZING_FLOCK';
+                end
+            end
+            
+            % 9. Step Tractor & Country Bike (descending the blind bend)
+            tr = obj.getAgentById(24);
+            if ~isempty(tr) && tr.is_active
+                if sim_time >= 22.0
+                    tr.x = tr.x - tr.v * dt;
+                end
+                if ~isempty(road_geom)
+                    [y_c_tr, th_tr, ~] = road_geom.getCenterline(tr.x);
+                    tr.y = y_c_tr + 1.25;
+                    tr.theta = th_tr + pi;
+                end
+            end
+            bk2 = obj.getAgentById(25);
+            if ~isempty(bk2) && bk2.is_active
+                if sim_time >= 25.0
+                    bk2.x = bk2.x - bk2.v * dt;
+                end
+                if ~isempty(road_geom)
+                    [y_c_bk2, th_bk2, ~] = road_geom.getCenterline(bk2.x);
+                    bk2.y = y_c_bk2 + 0.85;
+                    bk2.theta = th_bk2 + pi;
                 end
             end
             

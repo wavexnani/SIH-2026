@@ -73,6 +73,9 @@ classdef Stage5CoordinationController < handle
         
         function [u_cmd, pred_states, status, info] = step(obj, world, ref_path, v_des_nominal)
             if nargin < 4, v_des_nominal = obj.config.ego_v_init; end
+            if ~isempty(v_des_nominal) && isprop(obj.decision_layer, 'v_des_nominal')
+                obj.decision_layer.v_des_nominal = v_des_nominal;
+            end
             t_step_start = tic;
             
             % 1. Perception & Relative State Detection
@@ -168,20 +171,18 @@ classdef Stage5CoordinationController < handle
                     end
                 end
                 
-                if (was_in_maneuver || (~has_obs_ahead && abs(world.ego.y - y_nom_curr) > 0.35)) && obj.x_recenter_start < 0
+                if was_in_maneuver && obj.x_recenter_start < 0
                     obj.x_recenter_start = world.ego.x;
                     obj.y_recenter_start = world.ego.y;
                     obj.x_overtake_start = -1;
                     obj.y_overtake_start = -1;
                 end
                 
-                % Reset recenter state once recentering distance is completed OR ego has returned to right lane centerline (|y - y_ref| <= 0.15m and aligned)
+                % Reset recenter state once ego has returned to right lane centerline (|y - y_ref| <= 0.15m and aligned)
                 if obj.x_recenter_start > 0
-                    L_lc_recenter_check = max(30.0, 5.0 * max(world.ego.v, 2.0));
                     [~, nearest_r] = min(abs(ref_path(:, 1) - world.ego.x));
                     y_centerline = ref_path(nearest_r, 2);
-                    if world.ego.x > (obj.x_recenter_start + L_lc_recenter_check) || ...
-                       (world.ego.x > (obj.x_recenter_start + 15.0) && abs(world.ego.y - y_centerline) <= 0.15 && abs(world.ego.theta) <= 0.05)
+                    if abs(world.ego.y - y_centerline) <= 0.15 && abs(world.ego.theta) <= 0.05
                         obj.x_recenter_start = -1;
                         obj.y_recenter_start = -1;
                     end
@@ -204,12 +205,17 @@ classdef Stage5CoordinationController < handle
                 world_coord.n_agents = length(world_coord.agents);
             end
             
-            % Filter cleared static obstacles (Stage 4.5 invariant: x_ego > x_obs + 2.5m)
+            % Filter cleared static obstacles (footprint-aware clearance: rear bumper clears obstacle front edge)
             if isprop(world_coord, 'static_obs') && ~isempty(world_coord.static_obs)
                 obs_active = world_coord.static_obs;
                 for obs_i = 1:size(obs_active, 1)
                     obs_x = obs_active(obs_i, 1);
-                    if obs_x > 0 && world.ego.x > (obs_x + 2.5)
+                    obs_L = 2.0;
+                    if size(obs_active, 2) >= 3 && obs_active(obs_i, 3) > 0
+                        obs_L = obs_active(obs_i, 3);
+                    end
+                    d_clear_thresh = obs_L / 2.0 + 4.50 / 2.0 + 0.60;
+                    if obs_x > 0 && world.ego.x > (obs_x + d_clear_thresh)
                         obs_active(obs_i, 1) = -100.0; % Mark obstacle as cleared
                     end
                 end
@@ -252,7 +258,7 @@ classdef Stage5CoordinationController < handle
                     r1 = max(1, r - 1); r2 = min(N_pts, r + 1);
                     dx_p = ref_path_coord(r2, 1) - ref_path_coord(r1, 1);
                     dy_p = ref_path_coord(r2, 2) - ref_path_coord(r1, 2);
-                    ref_path_coord(r, 3) = max(-0.08, min(0.08, atan2(dy_p, dx_p)));
+                    ref_path_coord(r, 3) = atan2(dy_p, dx_p);
                 end
             elseif is_overtake_active && obj.x_overtake_start > 0
                 ref_path_coord = ref_path;
@@ -265,9 +271,15 @@ classdef Stage5CoordinationController < handle
                         end
                     end
                 end
-                L_lc = max(8.0, min(14.0, d_obs_ahead - 2.5));
                 y_centerline = ref_path(1, 2);
-                target_y_ov = min(4.25, max(y_centerline + 2.10, min(4.25, world.ego.y)));
+                if isprop(world_coord, 'road_geometry') && ~isempty(world_coord.road_geometry)
+                    [y_lo_ego, y_hi_ego] = world_coord.road_geometry.getBounds(world.ego.x);
+                else
+                    y_lo_ego = 0.0; y_hi_ego = 6.0;
+                end
+                y_pass_center = y_centerline + 0.25 * (y_hi_ego - y_lo_ego);
+                L_lc = max(8.0, min(14.0, d_obs_ahead - 2.5));
+                target_y_ov = min(y_hi_ego - 1.10, max(y_centerline + 1.20, y_pass_center));
                 y_start_ov = obj.y_overtake_start;
                 if y_start_ov < 0, y_start_ov = y_centerline; end
                 dy_ov = target_y_ov - y_start_ov;
@@ -279,63 +291,89 @@ classdef Stage5CoordinationController < handle
                     ds_dsnorm = 6.0 * s_norm - 6.0 * s_norm^2;
                     dy_dx = (dy_ov * ds_dsnorm) / L_lc;
                     ref_path_coord(r, 2) = y_start_ov + dy_ov * smooth_s;
-                    ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
+                    ref_path_coord(r, 3) = ref_path(r, 3) + atan(dy_dx);
                 end
             elseif obj.x_recenter_start > 0
-                L_lc_recenter = max(30.0, 5.0 * max(world.ego.v, 2.0));
+                L_lc_recenter = max(24.0, 4.0 * max(world.ego.v, 2.0));
+                [~, nearest_r] = min(abs(ref_path(:, 1) - world.ego.x));
+                y_centerline = ref_path(nearest_r, 2);
+                
                 if world.ego.x > (obj.x_recenter_start + L_lc_recenter)
-                    obj.x_recenter_start = 0;
-                    ref_path_coord = ref_path;
-                else
-                    ref_path_coord = ref_path;
-                    y_start = obj.y_recenter_start;
-                    if y_start < 0, y_start = 3.35; end
-                    for r = 1:size(ref_path_coord, 1)
-                        px = ref_path_coord(r, 1);
-                        s_norm = min(1.0, max(0.0, (px - obj.x_recenter_start) / L_lc_recenter));
-                        smooth_s = 3.0 * s_norm^2 - 2.0 * s_norm^3;
-                        ds_dsnorm = 6.0 * s_norm - 6.0 * s_norm^2;
-                        y_target_lane = ref_path(r, 2);
-                        dy_total = y_target_lane - y_start;
-                        dy_dx = (dy_total * ds_dsnorm) / L_lc_recenter;
-                        ref_path_coord(r, 2) = y_start + dy_total * smooth_s;
-                        ref_path_coord(r, 3) = max(-0.05, min(0.05, atan(dy_dx)));
+                    if abs(world.ego.y - y_centerline) > 0.20
+                        obj.x_recenter_start = world.ego.x;
+                        obj.y_recenter_start = world.ego.y;
+                    else
+                        obj.x_recenter_start = 0;
+                        ref_path_coord = ref_path;
+                        return;
                     end
+                end
+                
+                ref_path_coord = ref_path;
+                y_start = obj.y_recenter_start;
+                if y_start < 0, y_start = world.ego.y; end
+                for r = 1:size(ref_path_coord, 1)
+                    px = ref_path_coord(r, 1);
+                    s_norm = min(1.0, max(0.0, (px - obj.x_recenter_start) / L_lc_recenter));
+                    smooth_s = 3.0 * s_norm^2 - 2.0 * s_norm^3;
+                    ds_dsnorm = 6.0 * s_norm - 6.0 * s_norm^2;
+                    y_target_lane = ref_path(r, 2);
+                    dy_total = y_target_lane - y_start;
+                    dy_dx = (dy_total * ds_dsnorm) / L_lc_recenter;
+                    ref_path_coord(r, 2) = y_start + dy_total * smooth_s;
+                    ref_path_coord(r, 3) = ref_path(r, 3) + atan(dy_dx);
                 end
             else
                 ref_path_coord = ref_path;
             end
             
-            % Check if sheep herd is present on the lower road verge (x in [110, 134m])
-            has_lower_sheep = false;
-            if isprop(world_coord, 'agents') && ~isempty(world_coord.agents)
-                for a_i = 1:length(world_coord.agents)
-                    ag_chk = world_coord.agents(a_i);
-                    is_sheep = (isprop(ag_chk, 'type') && strcmp(ag_chk.type, 'sheep')) || ...
-                               (isprop(ag_chk, 'class_type') && strcmp(ag_chk.class_type, 'sheep')) || ...
-                               (isprop(ag_chk, 'id_str') && contains(ag_chk.id_str, 'SHEEP'));
-                    if is_sheep && ag_chk.x >= 115 && ag_chk.x <= 130
-                        has_lower_sheep = true;
-                        break;
+            % Perception-Driven Roadside Livestock Flock Defense:
+            % Scans perceived detections dynamically for active roadside grazing herds (sheep or cattle)
+            has_roadside_herd = false;
+            herd_x_list = [];
+            herd_y_list = [];
+            for d_i = 1:length(detections)
+                det_vru = detections(d_i);
+                if ismember(det_vru.type, {'sheep', 'cattle'})
+                    if det_vru.dx > -5.0 && det_vru.dx < 35.0
+                        has_roadside_herd = true;
+                        herd_x_list(end+1) = det_vru.x;
+                        herd_y_list(end+1) = det_vru.y;
                     end
                 end
             end
             
-            if has_lower_sheep
+            if has_roadside_herd && length(herd_x_list) >= 2
+                x_herd_min = min(herd_x_list) - 5.0;
+                x_herd_max = max(herd_x_list) + 8.0;
+                span_x = max(18.0, x_herd_max - x_herd_min);
+                y_herd_mean = mean(herd_y_list);
+                
+                % Query road centerline at flock location to determine occupied verge side
+                y_c_herd = 3.0;
+                if isprop(world_coord, 'road_geometry') && ~isempty(world_coord.road_geometry)
+                    y_c_herd = world_coord.road_geometry.getCenterline(mean(herd_x_list));
+                end
+                
+                % Defensive nudge: away from occupied verge towards open corridor
+                nudge_dir = 1.0;
+                if y_herd_mean > y_c_herd, nudge_dir = -1.0; end
+                
                 for r = 1:size(ref_path_coord, 1)
                     px_r = ref_path_coord(r, 1);
-                    if px_r >= 110.0 && px_r <= 134.0
-                        % Smooth Hann-window lateral shift towards road center (+0.60m)
-                        nudge_s = sin(pi * (px_r - 110.0) / 24.0)^2;
-                        ref_path_coord(r, 2) = ref_path_coord(r, 2) + 0.60 * nudge_s;
+                    if px_r >= x_herd_min && px_r <= x_herd_max
+                        s_norm = (px_r - x_herd_min) / span_x;
+                        nudge_s = sin(pi * s_norm)^2;
+                        ref_path_coord(r, 2) = ref_path_coord(r, 2) + nudge_dir * 0.60 * nudge_s;
                     end
                 end
+                
                 % Recompute smooth reference heading
                 for r = 1:size(ref_path_coord, 1)
                     r1 = max(1, r - 1); r2 = min(size(ref_path_coord, 1), r + 1);
                     dx_p = ref_path_coord(r2, 1) - ref_path_coord(r1, 1);
                     dy_p = ref_path_coord(r2, 2) - ref_path_coord(r1, 2);
-                    ref_path_coord(r, 3) = max(-0.06, min(0.06, atan2(dy_p, dx_p)));
+                    ref_path_coord(r, 3) = atan2(dy_p, dx_p);
                 end
             end
             
@@ -368,13 +406,17 @@ classdef Stage5CoordinationController < handle
                 end
             end
             
-            % Rural Livestock Regulation: Safe passing speed (3.0 m/s ~ 10.8 km/h)
-            if world.ego.x >= 112.0 && world.ego.x <= 130.0
+            % Rural Livestock Speed Regulation: Safe passing crawl when alongside livestock
+            if has_roadside_herd && ~isempty(herd_x_list) && ...
+               world.ego.x >= (min(herd_x_list) - 3.0) && world.ego.x <= (max(herd_x_list) + 3.0)
                 target_v_exec = min(target_v_exec, 3.0);
             end
             
-            % Curvature-aware velocity profiling (if enabled)
-            if obj.use_curvature_velocity && ~isempty(obj.curvature_planner)
+            % Curvature-aware velocity profiling (automatically active for curved roads and blind bends)
+            has_curve = isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && ...
+                        (world.road_geometry.curve_amp > 0 || ...
+                        (isprop(world.road_geometry, 'blind_bend_active') && world.road_geometry.blind_bend_active));
+            if (obj.use_curvature_velocity || has_curve) && ~isempty(obj.curvature_planner)
                 obj.cacrc_planner.use_curvature_velocity = true;
                 ref_path_coord = obj.curvature_planner.planVelocityProfile(ref_path_coord, target_v_exec);
             else

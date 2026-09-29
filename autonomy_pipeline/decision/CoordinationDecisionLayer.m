@@ -107,8 +107,15 @@ classdef CoordinationDecisionLayer < handle
             min_lead_dx = inf;
             for i = 1:length(detections)
                 det = detections(i);
-                is_lane_target = det.is_same_lane || (strcmp(det.type, 'auto') && det.dx <= 25.0 && abs(det.dy) <= 1.45);
-                if ~ismember(det.type, {'pothole', 'static_obstacle', 'pedestrian', 'sheep', 'cattle'}) && det.is_ahead && is_lane_target && det.dx < min_lead_dx
+                w_target = 1.80;
+                if isfield(det, 'width') && ~isempty(det.width) && det.width > 0
+                    w_target = det.width;
+                end
+                % Lateral conflict limit: physical corridor overlap (half vehicle + half obstacle + buffer)
+                lateral_conflict_limit = (1.80 + w_target) / 2.0 + 0.35;
+                is_lane_target = det.is_same_lane || (det.dx <= 35.0 && abs(det.dy) <= lateral_conflict_limit);
+                if ~ismember(det.type, {'pothole', 'static_obstacle', 'pedestrian', 'sheep', 'cattle'}) && ...
+                   det.is_ahead && ~det.is_oncoming && is_lane_target && det.dx < min_lead_dx
                     min_lead_dx = det.dx;
                     lead_idx = i;
                 end
@@ -125,7 +132,8 @@ classdef CoordinationDecisionLayer < handle
                 
                 min_dx_gate = 3.5;
                 if lead_det.v > 1.0, min_dx_gate = 6.0; end
-                if lead_det.dx <= 28.0 && lead_det.dx >= min_dx_gate
+                max_dx_gate = max(24.0, 4.0 * max(ego.v, 2.0));
+                if lead_det.dx <= max_dx_gate && lead_det.dx >= min_dx_gate
                     decision.overtake_candidate = true;
                 end
                 
@@ -143,16 +151,48 @@ classdef CoordinationDecisionLayer < handle
                 if gate_blocked_by_threat_or_gap
                     decision.macro_intent = 'YIELD';
                     decision.allow_overtake = false;
-                    d_standstill = 5.0;
-                    if lead_det.v > 1.0, d_standstill = 10.0; end
-                    err_d = lead_det.dx - d_standstill;
-                    v_yield = max(0.0, min(v_pd_clamped, 0.50 * err_d));
+                    
+                    % Determine if the yield is caused by an oncoming conflict in the bottleneck
+                    has_oncoming_conflict = has_oncoming_threat || ...
+                        strcmp(block_reason, 'TTC_TOO_LOW');
+                    if ~has_oncoming_conflict
+                        for d = 1:length(detections)
+                            if detections(d).is_oncoming && detections(d).dx > -7.5 && detections(d).dx < 45.0
+                                has_oncoming_conflict = true;
+                                break;
+                            end
+                        end
+                    end
+                    
+                    if has_oncoming_conflict
+                        % Standstill Hold at bottleneck entrance:
+                        % When yielding the narrow corridor to opposing traffic, ego must hold position
+                        % (or decelerate to stop before the bottleneck) until the opposing vehicle has cleared.
+                        % If ego is already stopped/crawling (v <= 1.2 m/s) or within safe distance of the lead obstacle,
+                        % command complete standstill (target_v = 0.0).
+                        d_hold_lead = 8.0;
+                        if ego.v <= 1.2 || lead_det.dx <= d_hold_lead
+                            v_yield = 0.0;
+                        else
+                            err_hold = lead_det.dx - d_hold_lead;
+                            v_yield = max(0.0, min(v_pd_clamped, 0.40 * err_hold));
+                        end
+                        decision.reason = sprintf('Yielding for oncoming bottleneck conflict (Standstill Hold: Avail=%.2fm, Req=%.2fm, TTC=%.2fs)', ...
+                            avail_gap, req_gap, gate_ttc);
+                    else
+                        % Standard car-following queue creep when no oncoming vehicle is in conflict
+                        d_standstill = 5.0;
+                        if lead_det.v > 1.0, d_standstill = 10.0; end
+                        err_d = lead_det.dx - d_standstill;
+                        v_yield = max(0.0, min(v_pd_clamped, 0.50 * err_d));
+                        decision.reason = sprintf('Yielding behind lead vehicle (Queue follow: Avail=%.2fm, Req=%.2fm)', ...
+                            avail_gap, req_gap);
+                    end
+                    
                     decision.target_v = v_yield;
-                    decision.reason = sprintf('Yielding behind lead vehicle (Gate blocked: %s, Avail=%.2fm, Req=%.2fm, TTC=%.2fs)', ...
-                        block_reason, avail_gap, req_gap, gate_ttc);
                     return;
                 else
-                    if obj.overtake_enabled && is_feasible && lead_det.dx <= 28.0 && lead_det.dx >= min_dx_gate
+                    if obj.overtake_enabled && is_feasible && lead_det.dx <= max_dx_gate && lead_det.dx >= min_dx_gate
                         % Corridor clear, speed sufficient, & gap reachable -> Initiate latched overtake
                         obj.active_overtake_id = lead_det.id;
                         decision.macro_intent = 'OVERTAKE';
@@ -160,7 +200,7 @@ classdef CoordinationDecisionLayer < handle
                         decision.target_v = min(obj.v_des_nominal, max(4.0, ego.v + 2.0));
                         decision.reason = sprintf('Initiating latched overtake on Agent %d (Gate Passed)', lead_det.id);
                         return;
-                    elseif lead_det.dx > 28.0
+                    elseif lead_det.dx > max_dx_gate
                         % Maintain car-following at safe headway until closing within overtake window
                         decision.macro_intent = 'FOLLOW';
                         decision.allow_overtake = true;
@@ -182,16 +222,42 @@ classdef CoordinationDecisionLayer < handle
                 end
             end
 
-            % An oncoming conflict without a same-lane lead still prohibits
-            % overtaking. The physical obstacle remains under Stage 4 control.
+            % An oncoming conflict without a same-lane lead prohibits overtaking.
+            % If the oncoming vehicle is cleanly in the opposing lane (|dy| >= 1.25m),
+            % ego maintains its lane at nominal cruise speed rather than stopping.
             if has_oncoming_threat
-                decision.macro_intent = 'YIELD';
+                is_headon_encroachment = false;
+                for i = 1:length(interactions)
+                    if strcmp(interactions(i).class_name, 'ONCOMING_VEHICLE')
+                        for d = 1:length(detections)
+                            if detections(d).id == interactions(i).id
+                                if abs(detections(d).dy) < 1.25
+                                    is_headon_encroachment = true;
+                                end
+                                break;
+                            end
+                        end
+                    end
+                end
+                
                 decision.allow_overtake = false;
-                decision.target_v = max(0.0, min(obj.v_des_nominal, ...
-                    obj.v_des_nominal * min_oncoming_ttc / 6.0));
-                decision.reason = sprintf('Yielding for oncoming conflict (TTC=%.2fs)', min_oncoming_ttc);
+                if is_headon_encroachment
+                    decision.macro_intent = 'YIELD';
+                    if min_oncoming_ttc <= 3.0 || ego.v <= 1.2
+                        decision.target_v = 0.0;
+                    else
+                        decision.target_v = max(0.0, min(obj.v_des_nominal, ...
+                            obj.v_des_nominal * min_oncoming_ttc / 6.0));
+                    end
+                    decision.reason = sprintf('Yielding for head-on oncoming encroachment (TTC=%.2fs)', min_oncoming_ttc);
+                else
+                    decision.macro_intent = 'MAINTAIN';
+                    decision.target_v = min(obj.v_des_nominal, 5.0);
+                    decision.reason = sprintf('Maintaining lane while oncoming traffic passes in opposing lane (TTC=%.2fs)', min_oncoming_ttc);
+                end
                 decision.overtake_allowed = false;
                 decision.overtake_block_reason = 'ONCOMING_CONFLICT_PRESENT';
+                return;
             end
         end
         
@@ -256,8 +322,8 @@ classdef CoordinationDecisionLayer < handle
                 end
                 
                 if det.dx > -7.5 && det.dx < max_dx_conflict
-                    % Check if vehicle or static obstacle is in passing corridor
-                    if det.y > 2.50
+                    % Check if vehicle or static obstacle is in passing corridor (occupying left passing lane)
+                    if det.dy > 0.40
                         left_lane_blockage = true;
                         % Net available gap is squeezed by vehicle width in left lane
                         w_obs = 1.80;

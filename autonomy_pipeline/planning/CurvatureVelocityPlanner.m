@@ -19,11 +19,11 @@ classdef CurvatureVelocityPlanner < handle
     %   L = 2.7 m, mass = 1500 kg, comfort lateral accel = 2.5 m/s^2 (~0.25 g)
     
     properties
-        a_lat_max       double = 2.50       % Maximum lateral acceleration (m/s^2) for passenger comfort
+        a_lat_max       double = 0.30       % Maximum lateral acceleration (m/s^2) — tightened for 90° blind bend safety
         a_accel_max     double = 2.00       % Maximum longitudinal acceleration (m/s^2)
         a_decel_max     double = 3.00       % Maximum service deceleration (m/s^2)
         v_max           double = 10.00      % Default upper speed limit (m/s)
-        v_min           double = 1.50       % Minimum maneuvering speed through tight corners (m/s)
+        v_min           double = 1.50       % Minimum maneuvering speed through tight corners (m/s) — allows physics limit to dominate
         eps_kappa       double = 1e-4       % Epsilon denominator to prevent div-by-zero on straights
         n_passes        int32 = 2           % Forward-backward smoothing iterations
     end
@@ -143,15 +143,28 @@ classdef CurvatureVelocityPlanner < handle
                 [kappa, s, headings] = obj.computeCurvature(x, y);
             end
             
-            % 1. Pointwise Lateral Acceleration Constraint
+            % 1. Spatial Curvature Envelope Filtering
+            % Lookahead/lookbehind window ensures vehicle does not accelerate between consecutive tight curves
             k_abs = abs(kappa);
-            v_lat = sqrt(obj.a_lat_max ./ max(k_abs, obj.eps_kappa));
+            k_env = k_abs;
+            w_m = 18.0; % 18-meter spatial lookahead window
+            for i = 1:N
+                s_i = s(i);
+                idx_lo = find(s >= (s_i - w_m), 1, 'first');
+                idx_hi = find(s <= (s_i + w_m), 1, 'last');
+                if ~isempty(idx_lo) && ~isempty(idx_hi)
+                    k_env(i) = max(k_abs(idx_lo:idx_hi));
+                end
+            end
+            
+            % Lateral Acceleration Constraint from Curvature Envelope
+            v_lat = sqrt(obj.a_lat_max ./ max(k_env, obj.eps_kappa));
             
             % Unconstrained target speed profile clamped to [v_min, v_cruise]
             v_profile = min(v_cruise, max(obj.v_min, v_lat));
             
             % If curvature is negligible, use full cruise speed
-            v_profile(k_abs < obj.eps_kappa * 5) = v_cruise;
+            v_profile(k_env < obj.eps_kappa * 5) = v_cruise;
             
             % Enforce terminal stop if requested
             if ~isempty(v_end)

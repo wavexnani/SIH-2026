@@ -12,6 +12,7 @@ classdef SafetyFilter < handle
         vehicle_width   double = 1.80       % Vehicle width (m)
         vehicle_length  double = 4.70       % Vehicle length (m)
         wheelbase       double = 2.70       % Wheelbase (m)
+        max_delta       double = 0.61       % Physical maximum steering angle (rad) ~ 35 deg
     end
     
     methods
@@ -21,6 +22,9 @@ classdef SafetyFilter < handle
                 obj.vehicle_width = cfg.vehicle_width;
                 obj.vehicle_length = cfg.vehicle_length;
                 obj.wheelbase = cfg.wheelbase;
+                if isprop(cfg, 'delta_max') && ~isempty(cfg.delta_max)
+                    obj.max_delta = cfg.delta_max;
+                end
             end
         end
         
@@ -39,21 +43,19 @@ classdef SafetyFilter < handle
             y_min_safe_curr = y_min_curr + half_width;
             y_max_safe_curr = y_max_curr - half_width;
             
-            % Active proportional PD re-centering steering calculation for emergency interventions
+            % Active road-following and re-centering steering calculation for emergency interventions
             y_c_curr = (y_min_curr + y_max_curr) / 2.0;
             th_road_curr = 0.0;
+            kappa_road_curr = 0.0;
             if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
-                [~, th_road_curr, ~] = world.road_geometry.getCenterline(world.ego.x);
+                [y_c_curr, th_road_curr, kappa_road_curr] = world.road_geometry.getCenterline(world.ego.x);
             end
-            k_p = 0.20; k_d = 0.50;
-            if world.ego.y > y_max_safe_curr
-                delta_steer_safe = -k_p * (world.ego.y - y_max_safe_curr) + k_d * (th_road_curr - world.ego.theta);
-            elseif world.ego.y < y_min_safe_curr
-                delta_steer_safe = k_p * (y_min_safe_curr - world.ego.y) + k_d * (th_road_curr - world.ego.theta);
-            else
-                delta_steer_safe = 0.10 * (y_c_curr - world.ego.y) + k_d * (th_road_curr - world.ego.theta);
-            end
-            delta_steer_safe = max(-0.15, min(0.15, delta_steer_safe));
+            % Feedforward steering for road curvature: delta_ff = atan(L * kappa)
+            delta_ff = atan(obj.wheelbase * kappa_road_curr);
+            
+            k_p = 0.25; k_d = 0.60;
+            delta_steer_safe = delta_ff + k_p * (y_c_curr - world.ego.y) + k_d * (th_road_curr - world.ego.theta);
+            delta_steer_safe = max(-obj.max_delta, min(obj.max_delta, delta_steer_safe));
             
             % 2. Check Primary MPC Status
             if status == 0
@@ -77,12 +79,7 @@ classdef SafetyFilter < handle
                     if py_k < (y_min_safe_k - 0.04) || py_k > (y_max_safe_k + 0.04)
                         filter_active = true;
                         filter_reason = 'predicted_road_bound_violation';
-                        if py_k < y_min_safe_k
-                            delta_rec = max(0.02, delta_steer_safe);
-                        else
-                            delta_rec = min(-0.02, delta_steer_safe);
-                        end
-                        u_safe = [delta_rec; -0.20];
+                        u_safe = [delta_steer_safe; -2.50];
                         return;
                     end
                 end
@@ -149,7 +146,8 @@ classdef SafetyFilter < handle
                                 if obb_gap <= 0.0
                                     filter_active = true;
                                     filter_reason = 'predicted_obstacle_clearance_violation';
-                                    u_safe = [u_mpc(1); obj.max_decel];
+                                    % Use road-following feedforward steering (not lagging MPC angle) on collision path
+                                    u_safe = [delta_steer_safe; obj.max_decel];
                                     return;
                                 end
                             end

@@ -33,6 +33,12 @@ classdef RoadGeometry < handle
         
         % Water canal and bridge culvert structure
         bridge_canal        struct = struct('active', false, 'x_start', 92.0, 'x_end', 106.0, 'width', 5.2)
+        
+        % Severe 90° blind countryside elbow turn
+        blind_bend_active   logical = false   % Enables severe elbow bend challenge after x=135m
+        blind_bend_amp      double  = 18.0    % Lateral span of blind bend (m)
+        blind_bend_x_start  double  = 135.0   % Longitudinal start of blind bend (m)
+        blind_bend_length   double  = 42.0    % Longitudinal transition length of bend (m)
     end
     
     methods
@@ -135,23 +141,51 @@ classdef RoadGeometry < handle
                     dy_dx = 0.0;
                     d2y_dx2 = 0.0;
                 else
-                    % Upright sweeping countryside curve (x > 106m)
-                    dx = x - 106.0;
-                    L_turn = 48.0;
-                    if dx < L_turn
-                        s = dx / L_turn;
-                        % Quintic smoothstep C^2 transition
-                        S = 10.0 * s^3 - 15.0 * s^4 + 6.0 * s^5;
-                        dS_ds = 30.0 * s^2 - 60.0 * s^3 + 30.0 * s^4;
-                        d2S_ds2 = 60.0 * s - 180.0 * s^2 + 120.0 * s^3;
-                        
-                        y_c = obj.y_center_base + obj.curve_amp * S;
-                        dy_dx = obj.curve_amp * dS_ds / L_turn;
-                        d2y_dx2 = obj.curve_amp * d2S_ds2 / (L_turn^2);
+                    % Countryside road section (x > 106m)
+                    if obj.blind_bend_active
+                        if x < obj.blind_bend_x_start
+                            % Post-bridge approach straight corridor
+                            y_c = obj.y_center_base;
+                            dy_dx = 0.0;
+                            d2y_dx2 = 0.0;
+                        else
+                            % Severe blind countryside elbow bend
+                            dx_b = x - obj.blind_bend_x_start;
+                            L_b = obj.blind_bend_length;
+                            if dx_b < L_b
+                                s = dx_b / L_b;
+                                S = 10.0 * s^3 - 15.0 * s^4 + 6.0 * s^5;
+                                dS_ds = 30.0 * s^2 - 60.0 * s^3 + 30.0 * s^4;
+                                d2S_ds2 = 60.0 * s - 180.0 * s^2 + 120.0 * s^3;
+                                
+                                y_c = obj.y_center_base + obj.blind_bend_amp * S;
+                                dy_dx = obj.blind_bend_amp * dS_ds / L_b;
+                                d2y_dx2 = obj.blind_bend_amp * d2S_ds2 / (L_b^2);
+                            else
+                                y_c = obj.y_center_base + obj.blind_bend_amp;
+                                dy_dx = 0.0;
+                                d2y_dx2 = 0.0;
+                            end
+                        end
                     else
-                        y_c = obj.y_center_base + obj.curve_amp;
-                        dy_dx = 0.0;
-                        d2y_dx2 = 0.0;
+                        % Upright sweeping countryside curve (x > 106m)
+                        dx = x - 106.0;
+                        L_turn = 48.0;
+                        if dx < L_turn
+                            s = dx / L_turn;
+                            % Quintic smoothstep C^2 transition
+                            S = 10.0 * s^3 - 15.0 * s^4 + 6.0 * s^5;
+                            dS_ds = 30.0 * s^2 - 60.0 * s^3 + 30.0 * s^4;
+                            d2S_ds2 = 60.0 * s - 180.0 * s^2 + 120.0 * s^3;
+                            
+                            y_c = obj.y_center_base + obj.curve_amp * S;
+                            dy_dx = obj.curve_amp * dS_ds / L_turn;
+                            d2y_dx2 = obj.curve_amp * d2S_ds2 / (L_turn^2);
+                        else
+                            y_c = obj.y_center_base + obj.curve_amp;
+                            dy_dx = 0.0;
+                            d2y_dx2 = 0.0;
+                        end
                     end
                 end
                 

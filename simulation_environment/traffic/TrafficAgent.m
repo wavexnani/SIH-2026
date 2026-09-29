@@ -111,6 +111,9 @@ classdef TrafficAgent < handle
                 case {'sheep', 'flock'}
                     obj.id_str = sprintf('SHEEP_%03d', obj.id);
                     obj.class_type = 'sheep';
+                case {'truck', 'tractor'}
+                    obj.id_str = sprintf('TRACTOR_%03d', obj.id);
+                    obj.class_type = 'truck';
                 otherwise
                     obj.id_str = sprintf('AGENT_%03d', obj.id);
             end
@@ -155,6 +158,17 @@ classdef TrafficAgent < handle
                     obj.a_min = -4.5;
                     obj.delta_max = deg2rad(35);
                     obj.delta_rate_max = deg2rad(60);
+                    obj.behavior_state = 'CRUISING';
+                    
+                case 'truck'
+                    obj.length = 5.80;
+                    obj.width = 2.20;
+                    obj.wheelbase = 3.60;
+                    obj.v_target = max(2.5, min(6.0, obj.v));
+                    obj.a_max = 1.2;
+                    obj.a_min = -3.0;
+                    obj.delta_max = deg2rad(28);
+                    obj.delta_rate_max = deg2rad(35);
                     obj.behavior_state = 'CRUISING';
                     
                 case 'bike'

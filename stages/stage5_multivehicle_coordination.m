@@ -134,20 +134,38 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
     N_path = 600;
     ref_path = zeros(N_path, 5);
     ref_path(:, 1) = linspace(0, road_len, N_path)';
-    if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && world.road_geometry.curve_amp > 0
-        y_offset_lane = world.ego.y - world.road_geometry.y_center_base;
+    if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && ...
+       (world.road_geometry.curve_amp > 0 || (isprop(world.road_geometry, 'blind_bend_active') && world.road_geometry.blind_bend_active))
+        % Bound nominal lane offset to driving lane center (+/- 0.75m from centerline)
+        y_offset_lane = max(-0.75, min(0.75, world.ego.y - world.road_geometry.y_center_base));
         for r = 1:N_path
-            [y_c_r, th_r, ~] = world.road_geometry.getCenterline(ref_path(r, 1));
+            [y_c_r, th_r, kap_r] = world.road_geometry.getCenterline(ref_path(r, 1));
             ref_path(r, 2) = y_c_r + y_offset_lane;
             ref_path(r, 3) = th_r; % Heading angle theta_ref
-            ref_path(r, 4) = 0.0;
+            ref_path(r, 4) = kap_r; % Road curvature kappa
         end
     else
         ref_path(:, 2) = world.ego.y;
         ref_path(:, 3) = 0.0;
         ref_path(:, 4) = 0.0;
     end
-    ref_path(:, 5) = v_target_nominal;
+    % Generate velocity profile: use CurvatureVelocityPlanner when road has curvature or blind bend
+    has_blind_bend = isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && ...
+                     isprop(world.road_geometry, 'blind_bend_active') && world.road_geometry.blind_bend_active;
+    if has_curvature || has_blind_bend
+        cvp = CurvatureVelocityPlanner(config);
+        cvp.v_max = v_target_nominal;    % Cruise at nominal speed on straights
+        cvp.v_min = 1.50;                % Allow physics limit to dominate on tight bends
+        cvp.a_lat_max = 0.30;            % Comfort lateral accel = 0.30 m/s^2
+        cvp.a_accel_max = 2.00;
+        cvp.a_decel_max = 3.00;
+        cvp.n_passes = int32(3);         % 3 smoothing passes for adequate pre-braking
+        [ref_path_aug, ~] = cvp.planVelocityProfile(ref_path(:, 1:4), v_target_nominal, []);
+        ref_path(:, 5) = ref_path_aug(:, 5); % Physics-based speed profile from curvature
+        ctrl5.use_curvature_velocity = true; % Enable curvature speed tracking in MPC horizon
+    else
+        ref_path(:, 5) = v_target_nominal;
+    end
     
     if verbose
         fprintf('\n');
@@ -239,6 +257,17 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         else
             simMeta.speed_breakers = [];
         end
+        if isprop(world.road_geometry, 'blind_bend_active') && world.road_geometry.blind_bend_active
+            simMeta.blind_bend_active = true;
+            simMeta.blind_bend_amp = world.road_geometry.blind_bend_amp;
+            simMeta.blind_bend_x_start = world.road_geometry.blind_bend_x_start;
+            simMeta.blind_bend_length = world.road_geometry.blind_bend_length;
+        else
+            simMeta.blind_bend_active = false;
+            simMeta.blind_bend_amp = 0.0;
+            simMeta.blind_bend_x_start = 135.0;
+            simMeta.blind_bend_length = 38.0;
+        end
     else
         simMeta.road_type = 'straight';
         simMeta.potholes = [];
@@ -249,6 +278,10 @@ function [passed, metrics, history, simulationLog] = stage5_multivehicle_coordin
         simMeta.curve_x_start = 20.0;
         simMeta.grade_slope = 0.0;
         simMeta.boundary_noise_amp = 0.0;
+        simMeta.blind_bend_active = false;
+        simMeta.blind_bend_amp = 0.0;
+        simMeta.blind_bend_x_start = 135.0;
+        simMeta.blind_bend_length = 38.0;
     end
     road_len_meta = config.road_length;
     if isprop(world, 'road_length') && ~isempty(world.road_length)

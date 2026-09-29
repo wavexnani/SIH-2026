@@ -400,14 +400,29 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (x <= 106.0) {
           return yCenterBase;
         } else {
-          const dx = x - 106.0;
-          const LTurn = 48.0;
-          if (dx < LTurn) {
-            const sNorm = dx / LTurn;
-            const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
-            return yCenterBase + curveAmp * S;
+          if (meta.blind_bend_active) {
+            const xStart = meta.blind_bend_x_start || 135.0;
+            const bAmp = meta.blind_bend_amp || 20.0;
+            const bLen = meta.blind_bend_length || 38.0;
+            if (x < xStart) {
+              return yCenterBase;
+            } else if (x < xStart + bLen) {
+              const sNorm = (x - xStart) / bLen;
+              const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
+              return yCenterBase + bAmp * S;
+            } else {
+              return yCenterBase + bAmp;
+            }
           } else {
-            return yCenterBase + curveAmp;
+            const dx = x - 106.0;
+            const LTurn = 48.0;
+            if (dx < LTurn) {
+              const sNorm = dx / LTurn;
+              const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
+              return yCenterBase + curveAmp * S;
+            } else {
+              return yCenterBase + curveAmp;
+            }
           }
         }
       };
@@ -1293,6 +1308,87 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillRect(-halfL, -halfW * 0.9, 2, halfW * 0.3);
     },
 
+    drawTractorSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Heavy Indian Agricultural Tractor (Mahindra Red / Sonalika Blue)
+      // 1. Rear Huge Mudguards & Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-halfL * 0.4, -halfW, halfL * 0.7, halfW * 0.38);
+      ctx.fillRect(-halfL * 0.4, halfW * 0.62, halfL * 0.7, halfW * 0.38);
+
+      // Deep tread ribs on rear tires
+      ctx.fillStyle = '#334155';
+      for (let tx = -halfL * 0.35; tx <= halfL * 0.25; tx += 4) {
+        ctx.fillRect(tx, -halfW, 2, halfW * 0.38);
+        ctx.fillRect(tx, halfW * 0.62, 2, halfW * 0.38);
+      }
+
+      // 2. Front Smaller Steer Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 0.5, -halfW * 0.85, halfL * 0.35, halfW * 0.28);
+      ctx.fillRect(halfL * 0.5, halfW * 0.57, halfL * 0.35, halfW * 0.28);
+
+      // 3. Engine Hood & Body (Vibrant Indian Agricultural Crimson Red)
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#991b1b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.1, -halfW * 0.55, halfL * 0.95, halfW * 1.1, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Front Grill
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(halfL * 0.8, -halfW * 0.45, halfL * 0.05, halfW * 0.9);
+
+      // Headlamps
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.82, -halfW * 0.35, 2.5, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.82, halfW * 0.35, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 4. Driver Open Platform & Seat
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-halfL * 0.6, -halfW * 0.5, halfL * 0.5, halfW * 1.0);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-halfL * 0.5, -halfW * 0.25, halfL * 0.25, halfW * 0.5);
+
+      // Steering Wheel
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(-halfL * 0.15, 0, halfW * 0.22, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Vertical Exhaust Smokestack
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.4, -halfW * 0.42, 3, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 5. Heavy Hitch / Trailer (if length > 5m)
+      if (L > 5.0) {
+        ctx.fillStyle = '#78350f';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-halfL * 0.98, -halfW * 0.9, halfL * 0.36, halfW * 1.8, 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-halfL * 0.62, 0);
+        ctx.lineTo(-halfL * 0.4, 0);
+        ctx.stroke();
+      }
+    },
+
     drawGroundTruthAgents(agents) {
       const ctx = this.ctx;
       const s = this.scale;
@@ -1320,6 +1416,8 @@ document.addEventListener('DOMContentLoaded', () => {
           this.drawMotorcycleSprite(ctx, s, L, W);
         } else if (type === 'pedestrian' || type === 'ped') {
           this.drawPedestrianSprite(ctx, s, L, W, ag);
+        } else if (type === 'truck' || (ag.id_str && ag.id_str.includes('TRACTOR'))) {
+          this.drawTractorSprite(ctx, s, L, W);
         } else {
           const isLead = (ag.id_str === 'CAR_LEAD');
           const isOncoming = (ag.id_str && ag.id_str.includes('ONCOMING'));

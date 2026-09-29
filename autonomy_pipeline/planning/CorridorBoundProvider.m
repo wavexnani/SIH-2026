@@ -20,7 +20,9 @@ classdef CorridorBoundProvider < AbstractBoundProvider
             nx = 4;
             if nargin < 4 || isempty(N_p), N_p = 20; end
             
-            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && (world.road_geometry.curve_amp > 0 || world.road_geometry.boundary_noise_amp > 0)
+            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry) && ...
+               (world.road_geometry.curve_amp > 0 || world.road_geometry.boundary_noise_amp > 0 || ...
+               (isprop(world.road_geometry, 'blind_bend_active') && world.road_geometry.blind_bend_active))
                 y_min_vec = zeros(N_p, 1);
                 y_max_vec = zeros(N_p, 1);
                 for k = 1:N_p

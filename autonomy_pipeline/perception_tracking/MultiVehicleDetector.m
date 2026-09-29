@@ -73,11 +73,15 @@ classdef MultiVehicleDetector
                 det.is_same_lane = (abs(det.dy) <= lane_tol);
                 det.is_adjacent_lane = (abs(det.dy) > lane_tol && abs(det.dy) <= 3.6);
                 
-                % Heading orientation indicator (vehicles only)
-                det.is_oncoming = ~strcmp(det.type, 'cattle') && ~strcmp(det.type, 'sheep') && ...
-                                  ~strcmp(det.type, 'pedestrian') && ...
-                                  ~strcmp(det.type, 'pothole') && ~strcmp(det.type, 'static_obstacle') && ...
-                                  (cos(det.theta - ego_th) < -0.7);
+                % Heading orientation indicator (vehicles only - road-curvature invariant)
+                is_veh = ~strcmp(det.type, 'cattle') && ~strcmp(det.type, 'sheep') && ...
+                         ~strcmp(det.type, 'pedestrian') && ...
+                         ~strcmp(det.type, 'pothole') && ~strcmp(det.type, 'static_obstacle');
+                th_road_det = 0.0;
+                if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+                    [~, th_road_det, ~] = world.road_geometry.getCenterline(det.x);
+                end
+                det.is_oncoming = is_veh && (cos(det.theta - th_road_det) < -0.5 || cos(det.theta - ego_th) < -0.2);
                 
                 detections(count) = det;
             end

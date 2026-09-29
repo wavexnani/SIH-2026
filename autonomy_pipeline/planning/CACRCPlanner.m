@@ -164,6 +164,13 @@ classdef CACRCPlanner < handle
                     if (obs_x - ego.x) > -3.0 && (obs_x - ego.x) < 25.0
                         obs_y = world.static_obs(obs_i, 2);
                         if obs_x < -10.0, continue; end % Skip disabled/out-of-bounds obstacles
+                        
+                        y_c_obs = 3.0;
+                        if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+                            [y_c_obs, ~, ~] = world.road_geometry.getCenterline(obs_x);
+                        end
+                        delta_y_obs = obs_y - y_c_obs;
+                        
                         r_obs = preds.radius(obs_i);
                         sigma_y_max = preds.sigma_y(obs_i, Np);
                         d_safe_max = r_ego + r_obs + beta * sigma_y_max + 0.10;
@@ -172,16 +179,24 @@ classdef CACRCPlanner < handle
                             px_ref = X_ref((k_ref - 1) * nx + 1);
                             dx_ref = px_ref - obs_x;
                             if dx_ref <= 0
-                                smooth_weight = exp(- (dx_ref / 12.0)^2); % 12m pre-obstacle smooth transition scale
+                                smooth_weight = exp(- (dx_ref / 10.0)^2); % 10m pre-obstacle smooth transition scale
                             elseif dx_ref <= 5.0
                                 smooth_weight = 1.0; % Hold flat target level while passing obstacle
                             else
                                 smooth_weight = exp(- ((dx_ref - 5.0) / 6.0)^2); % 6m return decay scale
                             end
                             idx_y = (k_ref - 1) * nx + 2;
+                            y_nom = X_ref(idx_y);
+                            y_c_k = y_c_obs;
+                            if isprop(world, 'road_geometry') && ~isempty(world.road_geometry)
+                                [y_c_k, ~, ~] = world.road_geometry.getCenterline(px_ref);
+                            end
+                            delta_y_nom = y_nom - y_c_k;
                             
-                            y_target_left = X_ref(idx_y) + (obs_y + d_safe_max + 0.15 - X_ref(idx_y)) * smooth_weight;
-                            y_target_right = X_ref(idx_y) + (obs_y - d_safe_max - 0.15 - X_ref(idx_y)) * smooth_weight;
+                            shift_left_req = max(0.0, (delta_y_obs + d_safe_max + 0.15) - delta_y_nom);
+                            shift_right_req = min(0.0, (delta_y_obs - d_safe_max - 0.15) - delta_y_nom);
+                            y_target_left = y_nom + shift_left_req * smooth_weight;
+                            y_target_right = y_nom + shift_right_req * smooth_weight;
                             
                             % Clamp topology reference targets to safe drivable bounds
                             y_target_left = min(y_max_vec(k_ref) - 0.05, y_target_left);
@@ -198,7 +213,6 @@ classdef CACRCPlanner < handle
                 end
             end
             
-            
             f_u_left = S_u' * Q_bar * (X_free - X_ref_left);
             f_u_right = S_u' * Q_bar * (X_free - X_ref_right);
             rate_offset = zeros(nu * Np, 1); rate_offset(1:nu) = -R_rate_single * u_op;
@@ -209,7 +223,7 @@ classdef CACRCPlanner < handle
             for k = 1:Np
                 idx_u = (k - 1) * nu + (1:nu);
                 lb_u(idx_u(1)) = -obj.max_steering; ub_u(idx_u(1)) = obj.max_steering;
-                lb_u(idx_u(2)) = obj.max_decel;     ub_u(idx_u(2)) = obj.max_accel;
+                lb_u(idx_u(2)) = obj.max_decel;     ub_u(idx_u(2)) = min(2.50, obj.max_accel);
             end
             
             y_min_safe = min(y_min_vec);
