@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('resize', () => this.resizeCanvas());
 
       this.bindEvents();
-      this.loadData();
+      const scenSelect = document.getElementById('scenario-select');
+      const initialUrl = scenSelect ? scenSelect.value : 'data/handdrawn_village_corrected.json';
+      this.loadData(initialUrl);
     },
 
     resizeCanvas() {
@@ -36,14 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
       this.renderFrame();
     },
 
-    async loadData() {
+    async loadData(jsonUrl = 'data/handdrawn_village_corrected.json') {
       try {
-        const res = await fetch('data/hero_scenario.json');
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        const res = await fetch(jsonUrl);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         this.data = await res.json();
         
         // Hide loading overlay
-        document.getElementById('loading-overlay').style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
 
         this.setupHeader();
         this.detectEvents();
@@ -51,11 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
         this.setStep(0);
       } catch (err) {
         console.error('Failed to load simulation data:', err);
-        document.getElementById('loading-overlay').innerHTML = `
-          <h2 style="color:var(--accent-red)">Failed to load data</h2>
-          <p style="margin-top:8px;color:var(--text-secondary)">Please ensure hero_scenario.json exists in web_viewer/data/</p>
-          <pre style="margin-top:12px;font-size:11px;color:var(--text-muted)">${err.message}</pre>
-        `;
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+          overlay.style.display = 'flex';
+          overlay.innerHTML = `
+            <h2 style="color:var(--accent-red)">Failed to load data</h2>
+            <p style="margin-top:8px;color:var(--text-secondary)">Please ensure ${jsonUrl} exists in web_viewer/data/</p>
+            <pre style="margin-top:12px;font-size:11px;color:var(--text-muted)">${err.message}</pre>
+          `;
+        }
       }
     },
 
@@ -124,6 +132,16 @@ document.addEventListener('DOMContentLoaded', () => {
             desc: st.safety ? st.safety.filter_reason : 'Layer 2 Safety Filter active'
           });
         }
+
+        // Speed Breaker Bump Traversal Event
+        if (st.ego && st.ego.x >= 86.5 && st.ego.x <= 89.5 && (!this.events.some(e => e.type === 'speed-breaker'))) {
+          this.events.push({
+            step: idx,
+            type: 'speed-breaker',
+            title: `Speed Breaker: ${(st.ego.v || 2.0).toFixed(1)} m/s Crawl`,
+            desc: `Suspension regulated speed for 10cm IRC road bump traversal`
+          });
+        }
       });
     },
 
@@ -184,6 +202,14 @@ document.addEventListener('DOMContentLoaded', () => {
           this.play();
         }
       });
+
+      const scenSelect = document.getElementById('scenario-select');
+      if (scenSelect) {
+        scenSelect.addEventListener('change', (e) => {
+          this.pause();
+          this.loadData(e.target.value);
+        });
+      }
 
       // Keyboard shortcuts
       window.addEventListener('keydown', (e) => {
@@ -297,9 +323,24 @@ document.addEventListener('DOMContentLoaded', () => {
       // 1. Draw Road Surface & Markings
       this.drawRoad(roadLength, roadWidth);
 
+      // 1b. Draw Canal Trench & Culvert Bridge (if defined in metadata)
+      if (this.data.metadata && this.data.metadata.bridge_canal) {
+        this.drawCanalBridge(this.data.metadata.bridge_canal, roadLength, roadWidth);
+      }
+
+      // 1c. Draw Physical Speed Breakers (if defined in metadata)
+      if (this.data.metadata && this.data.metadata.speed_breakers) {
+        this.drawSpeedBreakers(this.data.metadata.speed_breakers);
+      }
+
       // 2. Draw Static Obstacles
       if (this.data.metadata && this.data.metadata.static_obstacles) {
         this.drawStaticObstacles(this.data.metadata.static_obstacles);
+      }
+
+      // 2b. Draw Potholes & Road Defects
+      if (this.data.metadata && this.data.metadata.potholes) {
+        this.drawPotholes(this.data.metadata.potholes);
       }
 
       // 3. Draw Free Space Corridor Bounds
@@ -341,36 +382,410 @@ document.addEventListener('DOMContentLoaded', () => {
     drawRoad(length, width) {
       const ctx = this.ctx;
       const s = this.scale;
+      const meta = this.data.metadata || {};
+      const yCenterBase = (meta.road_bounds ? (meta.road_bounds[2] + meta.road_bounds[3]) / 2 : width / 2);
+      const halfW = width / 2;
+      const noiseAmp = meta.boundary_noise_amp || 0.12;
+      const curveAmp = meta.curve_amp || 2.80;
 
-      // Road asphalt surface
-      ctx.fillStyle = '#161b22';
-      ctx.fillRect(-20 * s, 0, (length + 40) * s, width * s);
+      // Mathematical centerline function strictly adhering to RoadGeometry.m
+      const getCenter = (x) => {
+        if (x <= 60.0) {
+          return yCenterBase + 0.30 * Math.sin(2 * Math.PI * x / 80.0);
+        } else if (x <= 85.0) {
+          const ym = 0.30 * Math.sin(2 * Math.PI * x / 80.0);
+          const sIn = (x - 60.0) / 25.0;
+          const wBr = 3.0 * sIn * sIn - 2.0 * sIn * sIn * sIn;
+          return yCenterBase + (1.0 - wBr) * ym;
+        } else if (x <= 106.0) {
+          return yCenterBase;
+        } else {
+          if (meta.blind_bend_active) {
+            const xStart = meta.blind_bend_x_start || 135.0;
+            const bAmp = meta.blind_bend_amp || 20.0;
+            const bLen = meta.blind_bend_length || 38.0;
+            if (x < xStart) {
+              return yCenterBase;
+            } else if (x < xStart + bLen) {
+              const sNorm = (x - xStart) / bLen;
+              const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
+              return yCenterBase + bAmp * S;
+            } else {
+              return yCenterBase + bAmp;
+            }
+          } else {
+            const dx = x - 106.0;
+            const LTurn = 48.0;
+            if (dx < LTurn) {
+              const sNorm = dx / LTurn;
+              const S = 10.0 * Math.pow(sNorm, 3) - 15.0 * Math.pow(sNorm, 4) + 6.0 * Math.pow(sNorm, 5);
+              return yCenterBase + curveAmp * S;
+            } else {
+              return yCenterBase + curveAmp;
+            }
+          }
+        }
+      };
 
-      // Outer Road Boundaries
-      ctx.strokeStyle = '#484f58';
-      ctx.lineWidth = 3;
-      
-      // Bottom Boundary (y=0)
+      const xMin = -25;
+      const xMax = length + 25;
+      const stepX = 1.0;
+
+      // 1. Off-Road Dirt Shoulder & Vegetation Background
+      ctx.save();
+      // Lower dirt shoulder
+      ctx.fillStyle = '#423124';
       ctx.beginPath();
-      ctx.moveTo(-20 * s, 0);
-      ctx.lineTo((length + 40) * s, 0);
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const yDirtBot = yc - halfW - 3.5;
+        if (x === xMin) ctx.moveTo(x * s, yDirtBot * s);
+        else ctx.lineTo(x * s, yDirtBot * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const yBot = yc - halfW;
+        ctx.lineTo(x * s, yBot * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Upper dirt shoulder
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const yTop = yc + halfW;
+        if (x === xMin) ctx.moveTo(x * s, yTop * s);
+        else ctx.lineTo(x * s, yTop * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const yDirtTop = yc + halfW + 3.5;
+        ctx.lineTo(x * s, yDirtTop * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Roadside grass tufts along dirt shoulder
+      for (let x = xMin; x <= xMax; x += 6.0) {
+        const yc = getCenter(x);
+        const yGrassBot = yc - halfW - 2.2 + 0.4 * Math.sin(x * 1.7);
+        const yGrassTop = yc + halfW + 2.2 + 0.4 * Math.cos(x * 1.9);
+        
+        ctx.fillStyle = '#2d3b25';
+        ctx.beginPath();
+        ctx.ellipse(x * s, yGrassBot * s, 1.2 * s, 0.6 * s, 0.2, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = '#35452b';
+        ctx.beginPath();
+        ctx.ellipse((x + 2.0) * s, yGrassTop * s, 1.4 * s, 0.7 * s, -0.2, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 2. Realistic Asphalt Surface with Organic Eroded Edges
+      ctx.save();
+      ctx.fillStyle = '#1c2128';
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.cos(x / 7.8 + 0.8) + 0.4 * Math.sin(x / 2.9)) : 0);
+        const yBot = yc - halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yBot * s);
+        else ctx.lineTo(x * s, yBot * s);
+      }
+      for (let x = xMax; x >= xMin; x -= stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.sin(x / 6.5 + 0.3) + 0.4 * Math.cos(x / 3.2)) : 0);
+        const yTop = yc + halfW + jitter;
+        ctx.lineTo(x * s, yTop * s);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Dark Tire Compaction Wheel Ruts (Traffic Tracks)
+      ctx.strokeStyle = '#12161c';
+      ctx.lineWidth = 1.3 * s;
+      ctx.lineCap = 'round';
+      // Lower lane tire tracks (y_c - 1.20m)
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX * 2) {
+        const yc = getCenter(x);
+        const yRut = yc - 1.20;
+        if (x === xMin) ctx.moveTo(x * s, yRut * s);
+        else ctx.lineTo(x * s, yRut * s);
+      }
+      ctx.stroke();
+      // Upper lane tire tracks (y_c + 1.20m)
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX * 2) {
+        const yc = getCenter(x);
+        const yRut = yc + 1.20;
+        if (x === xMin) ctx.moveTo(x * s, yRut * s);
+        else ctx.lineTo(x * s, yRut * s);
+      }
       ctx.stroke();
 
-      // Top Boundary (y=width)
+      // Crumbling Eroded Shoulder Outline
+      ctx.strokeStyle = '#574332';
+      ctx.lineWidth = 2.0;
       ctx.beginPath();
-      ctx.moveTo(-20 * s, width * s);
-      ctx.lineTo((length + 40) * s, width * s);
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.cos(x / 7.8 + 0.8) + 0.4 * Math.sin(x / 2.9)) : 0);
+        const yBot = yc - halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yBot * s);
+        else ctx.lineTo(x * s, yBot * s);
+      }
       ctx.stroke();
 
-      // Center Lane Divider Line (Dashed)
-      ctx.strokeStyle = '#30363d';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([10, 10]);
       ctx.beginPath();
-      ctx.moveTo(-20 * s, (width / 2) * s);
-      ctx.lineTo((length + 40) * s, (width / 2) * s);
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        const jitter = (noiseAmp > 0 ? noiseAmp * (0.6 * Math.sin(x / 6.5 + 0.3) + 0.4 * Math.cos(x / 3.2)) : 0);
+        const yTop = yc + halfW + jitter;
+        if (x === xMin) ctx.moveTo(x * s, yTop * s);
+        else ctx.lineTo(x * s, yTop * s);
+      }
+      ctx.stroke();
+
+      // Faded, Weathered Road Centerline (Sun-bleached dashes with irregular wear)
+      ctx.strokeStyle = 'rgba(210, 180, 140, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([8, 12]);
+      ctx.beginPath();
+      for (let x = xMin; x <= xMax; x += stepX) {
+        const yc = getCenter(x);
+        if (x === xMin) ctx.moveTo(x * s, yc * s);
+        else ctx.lineTo(x * s, yc * s);
+      }
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    },
+
+    drawPotholes(potholes) {
+      if (!potholes || !potholes.length) return;
+      const list = Array.isArray(potholes) ? potholes : [potholes];
+      const ctx = this.ctx;
+      const s = this.scale;
+
+      list.forEach(p => {
+        if (!p || p.x === undefined) return;
+        ctx.save();
+        ctx.translate(p.x * s, p.y * s);
+
+        const rx = (p.length / 2) * s;
+        const ry = (p.width / 2) * s;
+
+        // Broken asphalt fractured rim
+        ctx.fillStyle = '#11151a';
+        ctx.strokeStyle = '#6e7681';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const nPoints = 14;
+        for (let i = 0; i < nPoints; i++) {
+          const angle = (i / nPoints) * 2 * Math.PI;
+          const rVar = 0.85 + 0.30 * Math.sin(angle * 3.5 + p.id);
+          const px = Math.cos(angle) * rx * rVar;
+          const py = Math.sin(angle) * ry * rVar;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner murky water puddle reflection
+        ctx.fillStyle = '#0a1017';
+        ctx.beginPath();
+        for (let i = 0; i < nPoints; i++) {
+          const angle = (i / nPoints) * 2 * Math.PI;
+          const rVar = 0.65 + 0.20 * Math.cos(angle * 2.5 + p.id);
+          const px = Math.cos(angle) * rx * rVar;
+          const py = Math.sin(angle) * ry * rVar;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Water specular highlight
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.arc(-rx * 0.25, -ry * 0.2, rx * 0.35, 0.2, Math.PI * 0.8);
+        ctx.stroke();
+
+        // Scattered gravel pieces around rim
+        ctx.fillStyle = '#8b949e';
+        for (let g = 0; g < 6; g++) {
+          const gAngle = (g / 6) * 2 * Math.PI + 0.4;
+          const gx = Math.cos(gAngle) * (rx + 2.5);
+          const gy = Math.sin(gAngle) * (ry + 2.0);
+          ctx.fillRect(gx, gy, 1.8, 1.8);
+        }
+
+        ctx.restore();
+
+        // Label
+        ctx.save();
+        ctx.scale(1, -1);
+        ctx.fillStyle = '#f85149';
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.fillText(`POTHOLE #${p.id} (${p.severity || 'severe'})`, p.x * s - 18, -p.y * s - ry - 4);
+        ctx.restore();
+      });
+    },
+
+    drawCanalBridge(bridgeCanal, roadLength, roadWidth) {
+      if (!bridgeCanal || (!bridgeCanal.active && !bridgeCanal.is_active)) return;
+      const ctx = this.ctx;
+      const s = this.scale;
+      const xStart = bridgeCanal.x_start || 92.0;
+      const xEnd = bridgeCanal.x_end || 106.0;
+      const bridgeW = bridgeCanal.width || 5.2;
+      const yCenter = roadWidth / 2;
+
+      // 1. Canal Water Trench (Flowing across road under bridge)
+      const canalMargin = 12.0; // Extend water beyond road boundaries
+      ctx.save();
+      // Flowing water gradient
+      const waterGrad = ctx.createLinearGradient(xStart * s, 0, xEnd * s, 0);
+      waterGrad.addColorStop(0, '#0c4a6e');
+      waterGrad.addColorStop(0.5, '#0284c7');
+      waterGrad.addColorStop(1, '#0c4a6e');
+      ctx.fillStyle = waterGrad;
+      ctx.fillRect(xStart * s, -canalMargin * s, (xEnd - xStart) * s, (roadWidth + 2 * canalMargin) * s);
+
+      // Water Ripple Waves
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.5;
+      for (let yW = -canalMargin; yW <= roadWidth + canalMargin; yW += 1.8) {
+        ctx.beginPath();
+        ctx.moveTo(xStart * s, yW * s);
+        ctx.bezierCurveTo(
+          (xStart + 4) * s, (yW + 0.3) * s,
+          (xEnd - 4) * s, (yW - 0.3) * s,
+          xEnd * s, yW * s
+        );
+        ctx.stroke();
+      }
+
+      // Canal Earth/Stone Banks
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect((xStart - 1.2) * s, -canalMargin * s, 1.2 * s, (roadWidth + 2 * canalMargin) * s);
+      ctx.fillRect(xEnd * s, -canalMargin * s, 1.2 * s, (roadWidth + 2 * canalMargin) * s);
+
+      // 2. Concrete Culvert Bridge Deck (Asphalt road over canal)
+      const yBridgeLo = yCenter - bridgeW / 2;
+      const yBridgeHi = yCenter + bridgeW / 2;
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(xStart * s, yBridgeLo * s, (xEnd - xStart) * s, bridgeW * s);
+
+      // 3. Concrete Parapet / Safety Railings (Constrains drivable road width to 5.2m)
+      const drawParapet = (yPos) => {
+        // Concrete base barrier
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(xStart * s, (yPos - 0.25) * s, (xEnd - xStart) * s, 0.5 * s);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(xStart * s, (yPos - 0.25) * s, (xEnd - xStart) * s, 0.5 * s);
+
+        // Hazard striped reflectors along barrier
+        for (let xp = xStart; xp < xEnd - 1.0; xp += 2.0) {
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(xp * s, (yPos - 0.15) * s, 1.0 * s, 0.3 * s);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect((xp + 1.0) * s, (yPos - 0.15) * s, 1.0 * s, 0.3 * s);
+        }
+      };
+
+      drawParapet(yBridgeLo);
+      drawParapet(yBridgeHi);
+
+      // Centerline across bridge
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(xStart * s, yCenter * s);
+      ctx.lineTo(xEnd * s, yCenter * s);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Bridge & Canal Label
+      ctx.save();
+      ctx.scale(1, -1);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 10px "JetBrains Mono", monospace';
+      ctx.fillText('CULVERT BRIDGE (CANAL CROSSING)', (xStart + 0.5) * s, -(yBridgeHi + 0.6) * s);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillText('WATER CANAL', (xStart + 3.0) * s, -(yBridgeLo - 1.2) * s);
+      ctx.restore();
+    },
+
+    drawSpeedBreakers(speedBreakers) {
+      if (!speedBreakers || !speedBreakers.length) return;
+      const list = Array.isArray(speedBreakers) ? speedBreakers : [speedBreakers];
+      const ctx = this.ctx;
+      const s = this.scale;
+      const meta = this.data.metadata || {};
+      const roadW = meta.road_width || 6.0;
+
+      list.forEach(sb => {
+        if (!sb || sb.x === undefined) return;
+        const L = sb.length || 0.8;
+        const yMin = 0.0;
+        const yMax = roadW;
+
+        ctx.save();
+        // 3D Mound shadow and raised asphalt gradient
+        const moundGrad = ctx.createLinearGradient((sb.x - L/2) * s, 0, (sb.x + L/2) * s, 0);
+        moundGrad.addColorStop(0, '#1f2937');
+        moundGrad.addColorStop(0.5, '#4b5563');
+        moundGrad.addColorStop(1, '#111827');
+        ctx.fillStyle = moundGrad;
+        ctx.fillRect((sb.x - L/2) * s, yMin * s, L * s, roadW * s);
+
+        // Indian IRC Standard High-Contrast Yellow/Black Chevron Arrows Pattern
+        const chevronH = 0.6;
+        for (let y = yMin; y < yMax; y += chevronH) {
+          const isYellow = (Math.floor(y / chevronH) % 2 === 0);
+          ctx.fillStyle = isYellow ? '#facc15' : '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo((sb.x - L/2) * s, y * s);
+          ctx.lineTo((sb.x + L/2 * 0.4) * s, (y + chevronH/2) * s);
+          ctx.lineTo((sb.x - L/2) * s, (y + chevronH) * s);
+          ctx.lineTo((sb.x - L/2 + 0.3) * s, (y + chevronH) * s);
+          ctx.lineTo((sb.x + L/2) * s, (y + chevronH/2) * s);
+          ctx.lineTo((sb.x - L/2 + 0.3) * s, y * s);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // White approach rumble warning stripes
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1.5;
+        for (let dX of [-3.5, -2.5, -1.5, 1.5, 2.5, 3.5]) {
+          ctx.beginPath();
+          ctx.moveTo((sb.x + dX) * s, (yMin + 0.2) * s);
+          ctx.lineTo((sb.x + dX) * s, (yMax - 0.2) * s);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Speed Breaker Sign Label
+        ctx.save();
+        ctx.scale(1, -1);
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.fillText(`IRC SPEED BUMP (${sb.x}m)`, (sb.x - 5.0) * s, -(yMax + 0.6) * s);
+        ctx.restore();
+      });
     },
 
     drawStaticObstacles(obsList) {
@@ -398,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!minVec.length) return;
 
       const N = minVec.length;
-      const dx = 0.5; // step increment along horizon
+      const dx = 0.5;
 
       ctx.fillStyle = 'rgba(63,185,80,0.08)';
       ctx.strokeStyle = 'rgba(63,185,80,0.4)';
@@ -453,7 +868,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.lineWidth = 2.5;
 
       ctx.beginPath();
-      // Handle both matrix form [N_p x 4] or struct array
       for (let k = 0; k < traj.length; k++) {
         let px, py;
         if (Array.isArray(traj[k])) {
@@ -466,7 +880,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       ctx.stroke();
 
-      // Planned horizon dots
       ctx.fillStyle = '#58a6ff';
       for (let k = 0; k < traj.length; k += 2) {
         let px, py;
@@ -485,19 +898,495 @@ document.addEventListener('DOMContentLoaded', () => {
 
       list.forEach(ag => {
         if (!ag || ag.x === undefined || ag.x < -50) return;
+        const L = ag.length || 4.7;
+        const W = ag.width || 1.8;
+        const heading = (ag.heading !== undefined) ? ag.heading : Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+
         ctx.strokeStyle = '#d29922';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
 
         ctx.save();
         ctx.translate(ag.x * s, ag.y * s);
-        ctx.rotate(ag.heading || 0);
+        ctx.rotate(heading);
 
-        const L = 4.7, W = 1.8;
-        ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+        const type = (ag.type || 'car').toLowerCase();
+        if (type === 'pedestrian' || type === 'ped') {
+          ctx.beginPath();
+          ctx.arc(0, 0, (Math.max(L, W) / 2) * s, 0, 2 * Math.PI);
+          ctx.stroke();
+        } else if (type === 'cattle' || type === 'sheep') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, (L / 2) * s, (W / 2) * s, 0, 0, 2 * Math.PI);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+        }
         ctx.restore();
         ctx.setLineDash([]);
       });
+    },
+
+    drawAutoRickshawSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Lower Body Panels (Forest Green)
+      ctx.fillStyle = '#15803d';
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfL, 0); // Front nose
+      ctx.lineTo(halfL * 0.35, halfW); // Front-to-side taper
+      ctx.lineTo(-halfL, halfW); // Rear left
+      ctx.lineTo(-halfL, -halfW); // Rear right
+      ctx.lineTo(halfL * 0.35, -halfW); // Side-to-front taper
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 2. Yellow Canvas Roof Canopy
+      ctx.fillStyle = '#eab308';
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.5, 0);
+      ctx.lineTo(halfL * 0.15, halfW * 0.88);
+      ctx.lineTo(-halfL * 0.85, halfW * 0.88);
+      ctx.lineTo(-halfL * 0.85, -halfW * 0.88);
+      ctx.lineTo(halfL * 0.15, -halfW * 0.88);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Roof canvas ribs
+      ctx.strokeStyle = '#a16207';
+      ctx.lineWidth = 1.0;
+      for (let rx of [-halfL * 0.6, -halfL * 0.2, halfL * 0.1]) {
+        ctx.beginPath();
+        ctx.moveTo(rx, -halfW * 0.85);
+        ctx.lineTo(rx, halfW * 0.85);
+        ctx.stroke();
+      }
+
+      // 3. Curved Windshield with Wiper
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.45, -halfW * 0.55);
+      ctx.lineTo(halfL * 0.65, 0);
+      ctx.lineTo(halfL * 0.45, halfW * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Wiper
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.52, 0);
+      ctx.lineTo(halfL * 0.48, halfW * 0.35);
+      ctx.stroke();
+
+      // 4. Wheels & Mudguards
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect((halfL - 2), -halfW * 0.2, 4, halfW * 0.4);
+      ctx.fillRect((-halfL + 2), halfW - 2, halfL * 0.45, 3.5);
+      ctx.fillRect((-halfL + 2), -halfW - 1.5, halfL * 0.45, 3.5);
+
+      // Rear spare tire mount
+      ctx.beginPath();
+      ctx.arc(-halfL, 0, halfW * 0.35, 0, 2 * Math.PI);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.stroke();
+
+      // Front Headlamp
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL + 1, 0, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawCattleSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Torso & Flanks (Earthy mottled hide)
+      ctx.fillStyle = '#a05a2c';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, halfL * 0.75, halfW * 0.75, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Mottled hide patch
+      ctx.fillStyle = '#f5ebe0';
+      ctx.beginPath();
+      ctx.ellipse(-halfL * 0.2, halfW * 0.2, halfL * 0.3, halfW * 0.35, 0.4, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 2. Thoracic Shoulder Hump (Zebu hump)
+      ctx.fillStyle = '#854d0e';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.25, 0, halfW * 0.55, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 3. Bovine Head & Snout
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.8, 0, halfL * 0.32, halfW * 0.45, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Muzzle & Nostrils
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 1.05, 0, halfL * 0.14, halfW * 0.32, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#1c1917';
+      ctx.fillRect(halfL * 1.08, -halfW * 0.15, 1.8, 1.8);
+      ctx.fillRect(halfL * 1.08, halfW * 0.15 - 1.8, 1.8, 1.8);
+
+      // Drooping Ears
+      ctx.fillStyle = '#9a3412';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.65, halfW * 0.58, halfL * 0.18, halfW * 0.22, 0.6, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.65, -halfW * 0.58, halfL * 0.18, halfW * 0.22, -0.6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 4. Curved Ivory Horns with Dark Tips
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.65, halfW * 0.35);
+      ctx.quadraticCurveTo(halfL * 0.95, halfW * 0.85, halfL * 0.8, halfW * 1.15);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.65, -halfW * 0.35);
+      ctx.quadraticCurveTo(halfL * 0.95, -halfW * 0.85, halfL * 0.8, -halfW * 1.15);
+      ctx.stroke();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.8, halfW * 1.15, 1.6, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.8, -halfW * 1.15, 1.6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 5. Tail
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-halfL * 0.75, 0);
+      ctx.quadraticCurveTo(-halfL * 1.05, halfW * 0.35, -halfL * 1.25, halfW * 0.2);
+      ctx.stroke();
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(-halfL * 1.25, halfW * 0.2, 2.2, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawSheepSprite(ctx, s, L, W, isLaying = false) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // 1. Tiny dark hooves extending slightly (only when standing/grazing)
+      if (!isLaying) {
+        ctx.fillStyle = '#1e293b';
+        // Front hooves
+        ctx.fillRect(halfL * 0.35, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+        ctx.fillRect(halfL * 0.35, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+        // Rear hooves
+        ctx.fillRect(-halfL * 0.55, halfW * 0.65, halfL * 0.18, halfW * 0.28);
+        ctx.fillRect(-halfL * 0.55, -halfW * 0.93, halfL * 0.18, halfW * 0.28);
+      }
+
+      // 2. Fluffy Woolly Body (Plump fleece with cloud-like scalloped wool tufts)
+      // Wool base shadow
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      const bodyWScale = isLaying ? 0.98 : 0.88;
+      ctx.ellipse(-halfL * 0.05, 0, halfL * 0.82, halfW * bodyWScale, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Fluffy wool puffs (overlapping ivory/cream clouds)
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.0;
+
+      const woolTufts = [
+        { x: -halfL * 0.55, y: -halfW * 0.45, r: halfW * 0.45 },
+        { x: -halfL * 0.55, y: halfW * 0.45,  r: halfW * 0.45 },
+        { x: -halfL * 0.65, y: 0,              r: halfW * 0.48 },
+        { x: -halfL * 0.15, y: -halfW * 0.55, r: halfW * 0.46 },
+        { x: -halfL * 0.15, y: halfW * 0.55,  r: halfW * 0.46 },
+        { x: -halfL * 0.10, y: 0,              r: halfW * 0.55 },
+        { x: halfL * 0.30,  y: -halfW * 0.45, r: halfW * 0.44 },
+        { x: halfL * 0.30,  y: halfW * 0.45,  r: halfW * 0.44 },
+        { x: halfL * 0.35,  y: 0,              r: halfW * 0.50 }
+      ];
+
+      woolTufts.forEach(tuft => {
+        ctx.beginPath();
+        ctx.arc(tuft.x, tuft.y, tuft.r, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Fluffy wool tail
+      ctx.fillStyle = '#f1f5f9';
+      ctx.beginPath();
+      ctx.arc(-halfL * 0.85, 0, halfW * 0.30, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 3. Black/Charcoal Sheep Head & Snout (classic Suffolk / Indian indigenous sheep)
+      const headOffsetY = isLaying ? halfW * 0.10 : 0;
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.72, headOffsetY, halfL * 0.35, halfW * 0.42, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Muzzle / pinkish gray nose
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.98, headOffsetY, halfL * 0.12, halfW * 0.24, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Nostrils
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 1.02, headOffsetY - halfW * 0.10, 1.2, 1.2);
+      ctx.fillRect(halfL * 1.02, headOffsetY + halfW * 0.05, 1.2, 1.2);
+
+      // Floppy cute ears
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.60, headOffsetY + halfW * 0.60, halfL * 0.18, halfW * 0.22, 0.7, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.60, headOffsetY - halfW * 0.60, halfL * 0.18, halfW * 0.22, -0.7, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Head wool crown (forelock puff)
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.55, headOffsetY, halfW * 0.30, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawMotorcycleSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Spoked Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 0.55, -halfW * 0.22, halfL * 0.45, halfW * 0.44);
+      ctx.fillRect(-halfL * 0.95, -halfW * 0.22, halfL * 0.45, halfW * 0.44);
+
+      // Chassis & Fuel Tank
+      ctx.fillStyle = '#4f46e5';
+      ctx.beginPath();
+      ctx.ellipse(halfL * 0.15, 0, halfL * 0.35, halfW * 0.45, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Chrome exhaust
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.1, -halfW * 0.55);
+      ctx.lineTo(-halfL * 0.9, -halfW * 0.55);
+      ctx.stroke();
+
+      // Handlebars & Mirrors
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.45, -halfW * 0.85);
+      ctx.lineTo(halfL * 0.45, halfW * 0.85);
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.52, -halfW * 0.95, 1.8, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.52, halfW * 0.95, 1.8, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Rider Torso
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.ellipse(-halfL * 0.1, 0, halfL * 0.35, halfW * 0.65, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Safety Helmet
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.45, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Visor
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.45, -Math.PI * 0.25, Math.PI * 0.25);
+      ctx.fill();
+
+      // Headlamp
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL, 0, 2.2, 0, 2 * Math.PI);
+      ctx.fill();
+    },
+
+    drawPedestrianSprite(ctx, s, L, W, ag) {
+      const r = (Math.max(L, W) / 2) * s;
+      const isCrossing = (ag.behavior_state || '').includes('CROSS');
+
+      ctx.fillStyle = isCrossing ? '#ef4444' : '#10b981';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.9, r * 1.35, 0, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.72, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, -r * 1.2);
+      ctx.lineTo(r * 0.6, -r * 0.9);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, r * 1.2);
+      ctx.lineTo(-r * 0.6, r * 0.9);
+      ctx.stroke();
+    },
+
+    drawCarSprite(ctx, s, L, W, isLead, isOncoming) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      const carCol = isLead ? '#3b82f6' : (isOncoming ? '#f97316' : '#64748b');
+      ctx.fillStyle = carCol;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-halfL, -halfW, L * s, W * s, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.55, -halfW * 0.8, halfL * 1.1, halfW * 1.6, 3);
+      ctx.fill();
+
+      ctx.fillStyle = carCol;
+      ctx.fillRect(-halfL * 0.25, -halfW * 0.7, halfL * 0.7, halfW * 1.4);
+
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.beginPath();
+      ctx.moveTo(halfL * 0.5, -halfW * 0.75);
+      ctx.lineTo(halfL * 0.22, -halfW * 0.7);
+      ctx.lineTo(halfL * 0.22, halfW * 0.7);
+      ctx.lineTo(halfL * 0.5, halfW * 0.75);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(halfL - 2, halfW * 0.55, 2.5, halfW * 0.35);
+      ctx.fillRect(halfL - 2, -halfW * 0.9, 2.5, halfW * 0.35);
+
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-halfL, halfW * 0.6, 2, halfW * 0.3);
+      ctx.fillRect(-halfL, -halfW * 0.9, 2, halfW * 0.3);
+    },
+
+    drawTractorSprite(ctx, s, L, W) {
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Heavy Indian Agricultural Tractor (Mahindra Red / Sonalika Blue)
+      // 1. Rear Huge Mudguards & Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-halfL * 0.4, -halfW, halfL * 0.7, halfW * 0.38);
+      ctx.fillRect(-halfL * 0.4, halfW * 0.62, halfL * 0.7, halfW * 0.38);
+
+      // Deep tread ribs on rear tires
+      ctx.fillStyle = '#334155';
+      for (let tx = -halfL * 0.35; tx <= halfL * 0.25; tx += 4) {
+        ctx.fillRect(tx, -halfW, 2, halfW * 0.38);
+        ctx.fillRect(tx, halfW * 0.62, 2, halfW * 0.38);
+      }
+
+      // 2. Front Smaller Steer Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(halfL * 0.5, -halfW * 0.85, halfL * 0.35, halfW * 0.28);
+      ctx.fillRect(halfL * 0.5, halfW * 0.57, halfL * 0.35, halfW * 0.28);
+
+      // 3. Engine Hood & Body (Vibrant Indian Agricultural Crimson Red)
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#991b1b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.1, -halfW * 0.55, halfL * 0.95, halfW * 1.1, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Front Grill
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(halfL * 0.8, -halfW * 0.45, halfL * 0.05, halfW * 0.9);
+
+      // Headlamps
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.82, -halfW * 0.35, 2.5, 0, 2 * Math.PI);
+      ctx.arc(halfL * 0.82, halfW * 0.35, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 4. Driver Open Platform & Seat
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-halfL * 0.6, -halfW * 0.5, halfL * 0.5, halfW * 1.0);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-halfL * 0.5, -halfW * 0.25, halfL * 0.25, halfW * 0.5);
+
+      // Steering Wheel
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(-halfL * 0.15, 0, halfW * 0.22, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Vertical Exhaust Smokestack
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(halfL * 0.4, -halfW * 0.42, 3, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // 5. Heavy Hitch / Trailer (if length > 5m)
+      if (L > 5.0) {
+        ctx.fillStyle = '#78350f';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-halfL * 0.98, -halfW * 0.9, halfL * 0.36, halfW * 1.8, 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-halfL * 0.62, 0);
+        ctx.lineTo(-halfL * 0.4, 0);
+        ctx.stroke();
+      }
     },
 
     drawGroundTruthAgents(agents) {
@@ -509,33 +1398,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ag || ag.x === undefined || ag.x < -50) return;
         const L = ag.length || 4.7;
         const W = ag.width || 1.8;
-        const heading = Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+        const heading = (ag.heading !== undefined) ? ag.heading : Math.atan2(ag.vy || 0, (ag.vx || 0) + 1e-6);
+        const type = (ag.type || 'car').toLowerCase();
 
         ctx.save();
         ctx.translate(ag.x * s, ag.y * s);
         ctx.rotate(heading);
 
-        // Vehicle body
-        ctx.fillStyle = '#f0883e';
-        ctx.strokeStyle = '#d29922';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
-        ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
-
-        // Direction Indicator
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(L/3 * s, 0, 2, 0, 2*Math.PI);
-        ctx.fill();
+        if (type === 'auto' || type === 'autorickshaw') {
+          this.drawAutoRickshawSprite(ctx, s, L, W);
+        } else if (type === 'sheep' || (ag.id_str && ag.id_str.includes('SHEEP'))) {
+          const isLaying = (ag.id % 2 === 0);
+          this.drawSheepSprite(ctx, s, L, W, isLaying);
+        } else if (type === 'cattle' || type === 'cow') {
+          this.drawCattleSprite(ctx, s, L, W);
+        } else if (type === 'bike' || type === 'motorcycle') {
+          this.drawMotorcycleSprite(ctx, s, L, W);
+        } else if (type === 'pedestrian' || type === 'ped') {
+          this.drawPedestrianSprite(ctx, s, L, W, ag);
+        } else if (type === 'truck' || (ag.id_str && ag.id_str.includes('TRACTOR'))) {
+          this.drawTractorSprite(ctx, s, L, W);
+        } else {
+          const isLead = (ag.id_str === 'CAR_LEAD');
+          const isOncoming = (ag.id_str && ag.id_str.includes('ONCOMING'));
+          this.drawCarSprite(ctx, s, L, W, isLead, isOncoming);
+        }
 
         ctx.restore();
 
-        // Label (unrotated text)
+        // Agent State Label
         ctx.save();
         ctx.scale(1, -1);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px "JetBrains Mono", monospace';
-        ctx.fillText(`A${ag.id}`, ag.x * s - 6, -ag.y * s - W/2 * s - 4);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        const labelText = ag.id_str || `A${ag.id}`;
+        ctx.fillText(labelText, ag.x * s - 12, -ag.y * s - (W / 2) * s - 5);
         ctx.restore();
       });
     },
@@ -546,33 +1443,90 @@ document.addEventListener('DOMContentLoaded', () => {
       const L = (this.data.metadata ? this.data.metadata.vehicle_length : 4.7);
       const W = (this.data.metadata ? this.data.metadata.vehicle_width : 1.8);
 
+      // Check if traversing speed breaker (x in [86.2, 90.2m])
+      const isOverBump = (ego.x >= 86.2 && ego.x <= 90.2);
+      let bumpPitch = 0;
+      if (isOverBump) {
+        const dxBump = ego.x - 88.0;
+        const frontImpulse = Math.max(0, 1 - Math.abs(dxBump + 1.2) / 0.85);
+        const rearImpulse = Math.max(0, 1 - Math.abs(dxBump - 1.2) / 0.85);
+        bumpPitch = (frontImpulse - rearImpulse) * 0.08; // dynamic pitch tilt over bump
+      }
+
+      // Ego Local Perception Sensing Window (Forward 50m, Rear 15m, Lateral 6m)
       ctx.save();
       ctx.translate(ego.x * s, ego.y * s);
-      ctx.rotate(ego.theta || 0);
+      ctx.rotate((ego.theta || 0) + bumpPitch);
+      const fwdRange = 50.0;
+      const rearRange = 15.0;
+      const latRange = 6.0;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.04)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.fillRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
+      ctx.strokeRect(-rearRange * s, -latRange * s, (fwdRange + rearRange) * s, 2 * latRange * s);
+      ctx.setLineDash([]);
 
-      // Ego Body
-      ctx.fillStyle = '#58a6ff';
-      ctx.strokeStyle = '#388bfd';
-      ctx.lineWidth = 2;
-      ctx.fillRect(-L/2 * s, -W/2 * s, L * s, W * s);
-      ctx.strokeRect(-L/2 * s, -W/2 * s, L * s, W * s);
+      const halfL = (L / 2) * s;
+      const halfW = (W / 2) * s;
+
+      // Realistic Autonomous Vehicle Body (Metallic Blue)
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0369a1';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(-halfL, -halfW, L * s, W * s, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      // Dark Glass Roof & Cabin Greenhouse
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(-halfL * 0.5, -halfW * 0.8, halfL * 1.05, halfW * 1.6, 3);
+      ctx.fill();
+
+      // Autonomous Roof Sensor Pod (LiDAR Puck)
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, halfW * 0.32, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Forward Headlamps Beam
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(halfL - 2, halfW * 0.6, 3, halfW * 0.3);
+      ctx.fillRect(halfL - 2, -halfW * 0.9, 3, halfW * 0.3);
+
+      // Red Tail Lamps
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-halfL, halfW * 0.65, 2.5, halfW * 0.25);
+      ctx.fillRect(-halfL, -halfW * 0.9, 2.5, halfW * 0.25);
 
       // Heading Vector Line
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.lineTo((L/2 + 1.2) * s, 0);
+      ctx.lineTo((halfL + 18), 0);
       ctx.stroke();
 
       ctx.restore();
 
-      // Ego Label
+      // Ego Speed & Position Label
       ctx.save();
       ctx.scale(1, -1);
-      ctx.fillStyle = '#58a6ff';
+      ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 11px "JetBrains Mono", monospace';
-      ctx.fillText(`EGO (${ego.v ? ego.v.toFixed(1) : '0.0'} m/s)`, ego.x * s - 25, -ego.y * s - W/2 * s - 6);
+      ctx.fillText(`EGO (${ego.v ? ego.v.toFixed(1) : '0.0'} m/s)`, ego.x * s - 25, -ego.y * s - W/2 * s - 7);
+
+      if (isOverBump) {
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.fillText(`⚡ SPEED BUMP CRAWL (${ego.v ? ego.v.toFixed(1) : '2.0'} m/s)`, ego.x * s - 48, -ego.y * s - W/2 * s - 20);
+      }
       ctx.restore();
     },
 
@@ -585,9 +1539,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const intent = step.decision ? step.decision.macro_intent : (step.decision_intent || 'UNKNOWN');
       const minTtc = step.risk && step.risk.min_ttc !== undefined ? step.risk.min_ttc.toFixed(2) : '∞';
       const egoV = step.ego ? step.ego.v.toFixed(1) : '0.0';
+      const clr = step.groundTruth && step.groundTruth.min_clearance !== undefined ? step.groundTruth.min_clearance.toFixed(2) : '—';
+      const nObs = (step.observation && step.observation.agents) ? step.observation.agents.length : 0;
+      const nWorld = (step.groundTruth && step.groundTruth.agents) ? step.groundTruth.agents.length : 0;
 
-      ctx.fillText(`Macro-Intent: ${intent}`, 20, this.canvas.height - 40);
-      ctx.fillText(`Ego Speed: ${egoV} m/s | Min TTC: ${minTtc}s`, 20, this.canvas.height - 20);
+      ctx.fillText(`Macro-Intent: ${intent} | Clearance: ${clr}m`, 20, this.canvas.height - 45);
+      ctx.fillText(`Ego Speed: ${egoV} m/s | Min TTC: ${minTtc}s`, 20, this.canvas.height - 28);
+      ctx.fillText(`Observed Agents: ${nObs} in Frame (World Active: ${nWorld})`, 20, this.canvas.height - 11);
       ctx.restore();
     },
 
